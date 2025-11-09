@@ -1056,15 +1056,15 @@
         .spa-container {
             position: relative;
             width: 100%;
-            min-height: calc(100vh - 70px);
+            min-height: calc(100vh - 64px);
             display: block;
-            margin-top: 70px; /* مساحة للشريط العلوي */
+            padding-bottom: 64px; /* ترك مساحة للشريط السفلي */
         }
 
         .spa-content {
             position: relative;
             width: 100%;
-            min-height: calc(100vh - 70px);
+            min-height: calc(100vh - 64px);
             display: block;
             visibility: visible;
             opacity: 1;
@@ -1085,18 +1085,18 @@
         /* Navigation Menu */
         .main-nav-menu {
             position: fixed;
-            top: 0;
+            bottom: 0;
             left: 0;
             right: 0;
             background: var(--whatsapp-white);
-            border-bottom: 1px solid var(--whatsapp-gray);
+            border-top: 1px solid var(--whatsapp-gray);
             display: flex;
             justify-content: space-around;
             align-items: center;
-            padding: 10px 0;
+            padding: 8px 0;
             z-index: 1000;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            height: 70px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            height: 64px;
         }
 
         .nav-menu-item {
@@ -1597,7 +1597,7 @@
 
     <!-- Navigation Menu -->
     {% if user.is_authenticated %}
-    <nav class="main-nav-menu">
+    <nav class="main-nav-menu" aria-label="الشريط السفلي">
         <a href="/chats/" class="nav-menu-item" data-route="chats">
             <i class="fas fa-comments"></i>
             <span>الدردشات</span>
