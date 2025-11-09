@@ -1,3 +1,4 @@
+import logging
 import math
 import os
 import shutil
@@ -40,6 +41,9 @@ IMAGE_CONFIG = ImageCompressionConfig(
 VIDEO_CONFIG = VideoCompressionConfig(
     **getattr(settings, "MEDIA_VIDEO_COMPRESSION", {})
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 def _resolve_ffmpeg_binary() -> Tuple[str, str]:
@@ -150,12 +154,32 @@ def _probe_video_duration(ffprobe_bin: str, file_path: str) -> Optional[float]:
         return None
 
 
+def _wrap_original_upload(uploaded_file: UploadedFile) -> Tuple[ContentFile, str]:
+    """Return the original upload as ContentFile when compression is unavailable."""
+    uploaded_file.seek(0)
+    if hasattr(uploaded_file, "chunks"):
+        buffer = BytesIO()
+        for chunk in uploaded_file.chunks():
+            buffer.write(chunk)
+        data = buffer.getvalue()
+    else:
+        data = uploaded_file.read()
+    filename = Path(uploaded_file.name or "upload").name
+    original_content = ContentFile(data)
+    original_content.name = filename
+    return original_content, filename
+
+
 def compress_video(
     uploaded_file: UploadedFile,
     config: Optional[VideoCompressionConfig] = None,
 ) -> Tuple[ContentFile, str]:
     cfg = config or VIDEO_CONFIG
-    ffmpeg_bin, ffprobe_bin = _resolve_ffmpeg_binary()
+    try:
+        ffmpeg_bin, ffprobe_bin = _resolve_ffmpeg_binary()
+    except RuntimeError as exc:
+        logger.warning("FFmpeg binaries not found, storing original video: %s", exc)
+        return _wrap_original_upload(uploaded_file)
     input_path = _write_temp_file(uploaded_file)
     output_suffix = ".mp4"
     import tempfile
@@ -197,11 +221,11 @@ def compress_video(
             "+faststart",
             output_path,
         ]
-
         result = subprocess.run(command, capture_output=True)
         if result.returncode != 0 or not os.path.exists(output_path):
             stderr = result.stderr.decode("utf-8", "ignore")
-            raise RuntimeError(f"ffmpeg failed: {stderr}")
+            logger.warning("FFmpeg compression failed (%s). Falling back to original video.", stderr.strip())
+            return _wrap_original_upload(uploaded_file)
 
         with open(output_path, "rb") as output_file:
             data = output_file.read()
