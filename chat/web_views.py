@@ -500,8 +500,9 @@ def otp_test_view(request):
 @require_GET
 def service_worker(request):
     """تقديم ملف Service Worker من الجذر لضمان نطاق التطبيق الكامل."""
+    sw_filename = getattr(settings, 'PWA_SERVICE_WORKER_FILE', 'pwa/sw.js')
     try:
-        with staticfiles_storage.open('sw.js') as fh:
+        with staticfiles_storage.open(sw_filename) as fh:
             content = fh.read()
     except Exception:
         return HttpResponse('// service worker not found', content_type='application/javascript', status=404)

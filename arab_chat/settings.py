@@ -338,6 +338,7 @@ PWA_APP_ORIENTATION = 'portrait'
 PWA_APP_START_URL = '/'
 PWA_DIR = 'ltr'
 PWA_LANG = 'ar'
+PWA_SERVICE_WORKER_FILE = 'pwa/sw.js'
 
 # مسارات ffmpeg/ffprobe للإنتاج
 FFMPEG_BIN = env('FFMPEG_BIN', default=os.environ.get('FFMPEG_BINARY', 'ffmpeg'))
