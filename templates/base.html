@@ -2163,6 +2163,7 @@
             let deferredPrompt = store.deferredPrompt || null;
             let promptAvailable = !!deferredPrompt;
             let fallbackTimerId = null;
+            let autoPromptListener = null;
 
             if (!installTriggers.length && !guide) {
                 return;
@@ -2220,6 +2221,13 @@
                 }
             };
 
+            const detachAutoPrompt = () => {
+                if (autoPromptListener) {
+                    window.removeEventListener('click', autoPromptListener);
+                    autoPromptListener = null;
+                }
+            };
+
             const clearFallbackTimer = () => {
                 if (fallbackTimerId) {
                     clearTimeout(fallbackTimerId);
@@ -2234,6 +2242,64 @@
                         openGuide();
                     }
                 }, 8000);
+            };
+
+            const triggerInstallPrompt = async (source = 'manual') => {
+                if (!deferredPrompt) {
+                    return false;
+                }
+
+                const promptEvent = deferredPrompt;
+                deferredPrompt = null;
+                promptAvailable = false;
+                store.deferredPrompt = null;
+
+                try {
+                    promptEvent.prompt();
+                    const { outcome } = await promptEvent.userChoice;
+                    store.lastInstallOutcome = { outcome, source, timestamp: Date.now() };
+                    detachAutoPrompt();
+                    clearFallbackTimer();
+
+                    if (outcome === 'accepted') {
+                        concealTriggers();
+                        closeGuide();
+                        return true;
+                    }
+
+                    revealTriggers('fallback');
+                    scheduleFallbackGuide();
+                    return false;
+                } catch (error) {
+                    console.error('PWA install prompt failed:', error);
+                    // Restore event for another attempt
+                    deferredPrompt = promptEvent;
+                    promptAvailable = true;
+                    store.deferredPrompt = promptEvent;
+                    attachAutoPrompt();
+                    return false;
+                }
+            };
+
+            const attachAutoPrompt = () => {
+                detachAutoPrompt();
+                if (!deferredPrompt) {
+                    return;
+                }
+
+                autoPromptListener = async () => {
+                    if (!deferredPrompt) {
+                        detachAutoPrompt();
+                        return;
+                    }
+                    const success = await triggerInstallPrompt('auto');
+                    if (!success) {
+                        revealTriggers('fallback');
+                        openGuide();
+                    }
+                };
+
+                window.addEventListener('click', autoPromptListener, { once: true });
             };
 
             if (isStandalone()) {
@@ -2257,18 +2323,10 @@
                 }
 
                 if (promptAvailable && deferredPrompt) {
-                    revealTriggers('prompt');
-                    deferredPrompt.prompt();
-                    const { outcome } = await deferredPrompt.userChoice;
-                    deferredPrompt = null;
-                    promptAvailable = false;
-                    store.deferredPrompt = null;
-                    if (outcome === 'accepted') {
-                        concealTriggers();
-                        closeGuide();
-                        clearFallbackTimer();
-                    } else {
+                    const success = await triggerInstallPrompt('manual');
+                    if (!success) {
                         revealTriggers('fallback');
+                        openGuide();
                         scheduleFallbackGuide();
                     }
                 } else {
@@ -2281,6 +2339,10 @@
             installTriggers.forEach((btn) => {
                 btn.addEventListener('click', handleInstallClick, { passive: false });
             });
+
+            if (promptAvailable && deferredPrompt) {
+                attachAutoPrompt();
+            }
 
             if (guideClose) {
                 guideClose.addEventListener('click', () => {
@@ -2297,6 +2359,7 @@
                 revealTriggers('prompt');
                 closeGuide();
                 clearFallbackTimer();
+                attachAutoPrompt();
             });
 
             window.addEventListener('appinstalled', () => {
@@ -2306,6 +2369,7 @@
                 concealTriggers();
                 closeGuide();
                 clearFallbackTimer();
+                detachAutoPrompt();
                 try {
                     localStorage.setItem('arab_chat_installed', 'true');
                 } catch (err) {}
