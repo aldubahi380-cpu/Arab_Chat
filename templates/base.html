@@ -1109,6 +1109,12 @@
             position: relative;
         }
 
+        button.nav-menu-item {
+            border: none;
+            background: transparent;
+            cursor: pointer;
+        }
+
         .nav-menu-item i {
             font-size: 22px;
         }
@@ -1151,6 +1157,20 @@
 
         .nav-menu-item.active i {
             color: var(--whatsapp-teal);
+        }
+
+        .install-app-button {
+            background: rgba(37, 211, 102, 0.12);
+            color: var(--whatsapp-teal);
+            padding-inline: 20px;
+        }
+
+        .install-app-button:not(.visible) {
+            display: none;
+        }
+
+        .install-app-button:hover {
+            background: rgba(37, 211, 102, 0.22);
         }
 
         /* Loading Overlay */
@@ -1465,6 +1485,10 @@
             <i class="fas fa-search"></i>
             <span>البحث</span>
         </a>
+        <button type="button" class="nav-menu-item install-app-button" id="installAppButton" hidden>
+            <i class="fas fa-download"></i>
+            <span>تثبيت التطبيق</span>
+        </button>
         <a href="/settings/" class="nav-menu-item" data-route="settings">
             <i class="fas fa-cog"></i>
             <span>الإعدادات</span>
@@ -1865,31 +1889,141 @@
 
     <script>
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('{% static "pwa/sw.js" %}').catch((error) => {
-                    console.error('فشل تسجيل Service Worker:', error);
-                });
+            const registerAppWorker = async () => {
+                try {
+                    const registration = await navigator.serviceWorker.register('{% static "pwa/sw.js" %}');
+                    const enforceActivation = (worker) => {
+                        if (worker) {
+                            worker.postMessage({ type: 'SKIP_WAITING' });
+                        }
+                    };
 
-                const firebaseConfig = window.__APP_CONFIG__?.firebaseConfig || {};
-                if (firebaseConfig && firebaseConfig.apiKey) {
-                    navigator.serviceWorker.register('{% static "pwa/firebase-messaging-sw.js" %}')
-                        .then(() => navigator.serviceWorker.ready)
-                        .then((registration) => {
-                            const configPayload = {
-                                ...firebaseConfig,
-                                messagingSenderId: firebaseConfig.messagingSenderId || window.__APP_CONFIG__?.fcmWebPushSenderId,
-                            };
-                            registration.active?.postMessage({
-                                type: 'FCM_INIT',
-                                payload: { config: configPayload },
+                    if (registration.waiting) {
+                        enforceActivation(registration.waiting);
+                    }
+
+                    registration.addEventListener('updatefound', () => {
+                        const newWorker = registration.installing;
+                        if (newWorker) {
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    enforceActivation(newWorker);
+                                }
                             });
-                        })
-                        .catch((error) => {
-                            console.error('فشل تسجيل Firebase Messaging Service Worker:', error);
-                        });
+                        }
+                    });
+                } catch (error) {
+                    console.error('فشل تسجيل Service Worker:', error);
                 }
+            };
+
+            const registerMessagingWorker = async () => {
+                const firebaseConfig = window.__APP_CONFIG__?.firebaseConfig || {};
+                if (!firebaseConfig || !firebaseConfig.apiKey) {
+                    return;
+                }
+                try {
+                    await navigator.serviceWorker.register('{% static "pwa/firebase-messaging-sw.js" %}');
+                    const registration = await navigator.serviceWorker.ready;
+                    const configPayload = {
+                        ...firebaseConfig,
+                        messagingSenderId: firebaseConfig.messagingSenderId || window.__APP_CONFIG__?.fcmWebPushSenderId,
+                    };
+                    registration.active?.postMessage({
+                        type: 'FCM_INIT',
+                        payload: { config: configPayload },
+                    });
+                } catch (error) {
+                    console.error('فشل تسجيل Firebase Messaging Service Worker:', error);
+                }
+            };
+
+            let refreshed = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (refreshed) return;
+                refreshed = true;
+                window.location.reload();
+            });
+
+            window.addEventListener('load', () => {
+                registerAppWorker();
+                registerMessagingWorker();
             });
         }
+
+        (function setupPwaInstallPrompt() {
+            const installButton = document.getElementById('installAppButton');
+            if (!installButton) {
+                return;
+            }
+
+            const isStandalone = () =>
+                window.matchMedia('(display-mode: standalone)').matches ||
+                window.matchMedia('(display-mode: window-controls-overlay)').matches ||
+                window.navigator.standalone === true;
+
+            let deferredPrompt = null;
+
+            const hideInstallButton = () => {
+                installButton.classList.remove('visible');
+                installButton.setAttribute('hidden', '');
+            };
+
+            const showInstallButton = () => {
+                if (isStandalone()) {
+                    hideInstallButton();
+                    return;
+                }
+                installButton.classList.add('visible');
+                installButton.removeAttribute('hidden');
+            };
+
+            if (isStandalone()) {
+                hideInstallButton();
+            }
+
+            window.addEventListener('beforeinstallprompt', (event) => {
+                event.preventDefault();
+                deferredPrompt = event;
+                showInstallButton();
+            });
+
+            window.addEventListener('appinstalled', () => {
+                deferredPrompt = null;
+                hideInstallButton();
+                try {
+                    localStorage.setItem('arab_chat_installed', 'true');
+                } catch (err) {}
+            });
+
+            const mediaQuery = window.matchMedia('(display-mode: standalone)');
+            if (mediaQuery && mediaQuery.addEventListener) {
+                mediaQuery.addEventListener('change', (event) => {
+                    if (event.matches) {
+                        hideInstallButton();
+                    }
+                });
+            }
+
+            installButton.addEventListener('click', async () => {
+                if (!deferredPrompt) {
+                    alert('يمكن تثبيت التطبيق من إعدادات المتصفح أو القائمة الجانبية.');
+                    return;
+                }
+                const confirmed = window.confirm('هل ترغب بتثبيت تطبيق عرب شات على جهازك؟');
+                if (!confirmed) {
+                    return;
+                }
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                deferredPrompt = null;
+                if (outcome !== 'accepted') {
+                    showInstallButton();
+                } else {
+                    hideInstallButton();
+                }
+            });
+        })();
     </script>
 
     <!-- Simple Navigation Helper -->
