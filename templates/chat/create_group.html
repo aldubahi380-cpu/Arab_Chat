@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+
+{% block title %}إنشاء مجموعة جديدة - عرب شات{% endblock %}
+
+{% block extra_css %}
+<style>
+    .create-group-container {
+        max-width: 600px;
+        margin: 40px auto;
+        padding: 20px;
+    }
+
+    .create-group-card {
+        background: var(--whatsapp-white);
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        padding: 30px;
+    }
+
+    .create-group-header {
+        background: var(--whatsapp-teal);
+        color: var(--whatsapp-white);
+        padding: 20px;
+        border-radius: 12px 12px 0 0;
+        margin: -30px -30px 30px -30px;
+    }
+
+    .create-group-header h2 {
+        margin: 0;
+        font-size: 24px;
+        font-weight: 500;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: #111;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid var(--whatsapp-gray);
+        border-radius: 8px;
+        font-size: 15px;
+        outline: none;
+        transition: all 0.3s;
+    }
+
+    .form-control:focus {
+        border-color: var(--whatsapp-teal);
+        box-shadow: 0 0 0 3px rgba(7, 94, 84, 0.1);
+    }
+
+    textarea.form-control {
+        min-height: 120px;
+        resize: vertical;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 30px;
+    }
+
+    .btn {
+        flex: 1;
+        padding: 12px 24px;
+        border-radius: 25px;
+        font-size: 15px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s;
+        border: none;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .btn-primary {
+        background: var(--whatsapp-green);
+        color: var(--whatsapp-white);
+    }
+
+    .btn-primary:hover {
+        background: var(--whatsapp-dark-green);
+    }
+
+    .btn-secondary {
+        background: var(--whatsapp-gray);
+        color: #111;
+    }
+
+    .btn-secondary:hover {
+        background: var(--whatsapp-dark-gray);
+    }
+
+    .form-help {
+        font-size: 13px;
+        color: var(--whatsapp-dark-gray);
+        margin-top: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="create-group-container">
+    <div class="create-group-card">
+        <div class="create-group-header">
+            <h2><i class="fas fa-plus-circle"></i> إنشاء مجموعة جديدة</h2>
+        </div>
+
+        <form method="POST" id="createGroupForm">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label class="form-label" for="name">
+                    اسم المجموعة <span style="color: #dc3545;">*</span>
+                </label>
+                <input 
+                    type="text" 
+                    id="name" 
+                    name="name" 
+                    class="form-control" 
+                    placeholder="أدخل اسم المجموعة"
+                    required
+                    maxlength="100"
+                >
+                <div class="form-help">اسم المجموعة سيظهر لجميع المستخدمين</div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="description">
+                    الوصف (اختياري)
+                </label>
+                <textarea 
+                    id="description" 
+                    name="description" 
+                    class="form-control" 
+                    placeholder="اكتب وصفاً للمجموعة..."
+                    maxlength="500"
+                ></textarea>
+                <div class="form-help">وصف مختصر عن المجموعة (حد أقصى 500 حرف)</div>
+            </div>
+
+            <div class="form-actions">
+                <a href="{% url 'groups' %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> إلغاء
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-check"></i> إنشاء المجموعة
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.getElementById('createGroupForm')?.addEventListener('submit', function(e) {
+    const nameInput = document.getElementById('name');
+    const name = nameInput.value.trim();
+    
+    if (!name) {
+        e.preventDefault();
+        alert('يرجى إدخال اسم المجموعة');
+        nameInput.focus();
+        return false;
+    }
+    
+    if (name.length < 3) {
+        e.preventDefault();
+        alert('اسم المجموعة يجب أن يكون 3 أحرف على الأقل');
+        nameInput.focus();
+        return false;
+    }
+});
+</script>
+{% endblock %}
+

@@ -1,0 +1,2015 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#075E54">
+    <title>{% block title %}عرب شات{% endblock %}</title>
+    <link rel="manifest" href="{% static 'pwa/manifest.webmanifest' %}">
+    <link rel="apple-touch-icon" sizes="192x192" href="{% static 'pwa/icons/icon-192.png' %}">
+    <link rel="apple-touch-icon" sizes="512x512" href="{% static 'pwa/icons/icon-512.png' %}">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    {{ APP_CONFIG|json_script:"app-config-data" }}
+    <script>
+        (function () {
+            let parsedConfig = {};
+            try {
+                const configNode = document.getElementById('app-config-data');
+                if (configNode) {
+                    parsedConfig = JSON.parse(configNode.textContent || '{}');
+                } else {
+                    console.warn('App config script tag not found.');
+                }
+            } catch (error) {
+                console.error('Failed to parse APP_CONFIG', error);
+            }
+
+            const fallbackOrigin = `${window.location.protocol}//${window.location.host}`;
+            const fallbackWsOrigin = `${window.location.protocol === 'https:' ? 'wss://' : 'ws://'}${window.location.host}`;
+
+            const normaliseBase = (value, fallback) => {
+                const base = (value || fallback || '').toString();
+                return base ? base.replace(/\/+$/, '') : '';
+            };
+
+            const baseUrl = normaliseBase(parsedConfig.baseUrl || parsedConfig.base_url, fallbackOrigin);
+            const apiBase = normaliseBase(parsedConfig.apiBaseUrl || parsedConfig.api_base_url, baseUrl ? `${baseUrl}/api` : `${fallbackOrigin}/api`);
+            const wsBase = normaliseBase(parsedConfig.wsBaseUrl || parsedConfig.ws_base_url, fallbackWsOrigin);
+
+            const config = Object.freeze({
+                ...parsedConfig,
+                baseUrl,
+                apiBaseUrl: apiBase,
+                wsBaseUrl: wsBase,
+            });
+
+            window.__APP_CONFIG__ = config;
+            window.BASE_URL = baseUrl;
+            window.API_BASE_URL = apiBase;
+            window.WS_BASE_URL = wsBase;
+
+            const joinUrl = (base, path = '') => {
+                const trimmedBase = (base || '').replace(/\/+$/, '');
+                const trimmedPath = String(path || '').replace(/^\/+/, '');
+                if (!trimmedPath) {
+                    return trimmedBase || '';
+                }
+                return `${trimmedBase}/${trimmedPath}`;
+            };
+
+            window.buildUrl = joinUrl;
+            window.buildApiUrl = (path = '') => joinUrl(window.API_BASE_URL || '', path);
+            window.buildWsUrl = (path = '') => joinUrl(window.WS_BASE_URL || '', path);
+            window.apiFetch = (path = '', options) => {
+                const target = window.buildApiUrl ? window.buildApiUrl(path) : path;
+                return fetch(target, options);
+            };
+        window.loadCallClient = async function loadCallClient() {
+            if (window.__callClientPromise) {
+                return window.__callClientPromise;
+            }
+            try {
+                const staticUrl = window.__APP_CONFIG__?.staticUrl || '/static/';
+                const moduleUrl = `${window.buildUrl(staticUrl, 'js/call/client.mjs')}?v=${window.__APP_CONFIG__?.build || ''}`;
+                window.__callClientPromise = import(/* webpackIgnore: true */ moduleUrl).then((module) => {
+                    const init = module?.default;
+                    if (typeof init !== 'function') {
+                        throw new Error('call client module missing default export');
+                    }
+                    return init({
+                        ...window.__APP_CONFIG__,
+                        apiBaseUrl: window.API_BASE_URL,
+                        wsBaseUrl: window.WS_BASE_URL,
+                    });
+                });
+                return window.__callClientPromise;
+            } catch (error) {
+                console.error('Failed to load call client module', error);
+                window.__callClientPromise = Promise.reject(error);
+                return window.__callClientPromise;
+            }
+        };
+        })();
+    </script>
+    <style>
+        :root {
+            --whatsapp-green: #25D366;
+            --whatsapp-dark-green: #128C7E;
+            --whatsapp-teal: #075E54;
+            --whatsapp-light-green: #DCF8C6;
+            --whatsapp-light-gray: #F0F2F5;
+            --whatsapp-dark-gray: #54656F;
+            --whatsapp-white: #FFFFFF;
+            --whatsapp-gray: #E9EDEF;
+            --whatsapp-hover: #F5F6F6;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 15px rgba(0,0,0,0.15);
+            --shadow-xl: 0 20px 25px rgba(0,0,0,0.2);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-full: 50px;
+            --transition-fast: 0.15s ease;
+            --transition-base: 0.2s ease;
+            --transition-slow: 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, 'Lucida Grande', Arial, sans-serif;
+            background: var(--whatsapp-gray);
+            min-height: 100vh;
+            min-height: 100dvh; /* استخدام dvh للدعم الحديث */
+            padding-top: 70px; /* Space for top navigation menu */
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+        
+        /* على الموبايل، إزالة padding-top للصفحات التي تحتوي على whatsapp-container */
+        @media (max-width: 768px) {
+            body:has(.chat-room-page) {
+                padding-top: 0 !important;
+            }
+        }
+
+        /* Layout Container - يشبه WhatsApp */
+        .whatsapp-container {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            height: 100vh;
+            max-width: 1600px;
+            margin: 0 auto;
+            background: var(--whatsapp-white);
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        
+        /* Layout للصفحات التي تعرض قائمة فقط (بدون نافذة دردشة) */
+        .whatsapp-container.chats-list-only {
+            grid-template-columns: 1fr;
+            max-width: 100%;
+        }
+
+        /* Mobile Layout */
+        @media (max-width: 768px) {
+            /* في صفحة الدردشة فقط، إزالة padding */
+            body:has(.chat-room-page) {
+                padding-top: 0 !important;
+            }
+            
+            .whatsapp-container {
+                grid-template-columns: 1fr;
+                height: 100vh;
+                height: 100dvh; /* استخدام dvh للدعم الحديث */
+                max-width: 100%;
+                margin: 0;
+                box-shadow: none;
+            }
+            
+            /* في صفحة الدردشة، إخفاء قائمة الدردشات */
+            .whatsapp-container.chat-room-page .chat-list-panel {
+                display: none !important;
+            }
+            
+            .whatsapp-container.chat-room-page .chat-window-panel {
+                display: flex !important;
+                position: relative;
+                width: 100%;
+                height: 100%;
+            }
+            
+            .chat-window-panel {
+                display: none;
+            }
+            
+            .chat-window-panel.active {
+                display: flex !important;
+            }
+        }
+
+        /* Desktop Layout */
+        @media (min-width: 769px) {
+            .chat-list-panel {
+                display: block;
+                border-right: 1px solid var(--whatsapp-gray);
+            }
+            
+            .chat-window-panel {
+                display: block;
+            }
+            
+            /* للصفحات التي تعرض قائمة فقط */
+            .whatsapp-container.chats-list-only .chat-list-panel {
+                border-right: none;
+                max-width: 600px;
+                margin: 0 auto;
+            }
+        }
+
+        /* Chat List Panel - القائمة الجانبية */
+        .chat-list-panel {
+            background: var(--whatsapp-white);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Chat List Header */
+        .chat-list-header {
+            background: var(--whatsapp-teal);
+            color: var(--whatsapp-white);
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+
+        .chat-list-header .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .chat-list-header .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .chat-list-header .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--whatsapp-light-green);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .chat-list-header .icon-btn {
+            background: none;
+            border: none;
+            color: var(--whatsapp-white);
+            font-size: 20px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            transition: all var(--transition-base);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            position: relative;
+        }
+
+        .chat-list-header .icon-btn:hover {
+            background: rgba(255,255,255,0.15);
+            transform: scale(1.05);
+        }
+
+        .chat-list-header .icon-btn:active {
+            transform: scale(0.95);
+            background: rgba(255,255,255,0.2);
+        }
+
+        .chat-list-header .icon-btn i {
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));
+        }
+
+        /* Search Bar */
+        .search-container {
+            background: var(--whatsapp-white);
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--whatsapp-gray);
+        }
+
+        .search-bar-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .search-icon-btn,
+        .camera-icon-btn {
+            background: none;
+            border: none;
+            color: var(--whatsapp-dark-gray);
+            font-size: 18px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            transition: background 0.2s;
+            flex-shrink: 0;
+        }
+
+        .search-icon-btn:hover,
+        .camera-icon-btn:hover {
+            background: var(--whatsapp-hover);
+        }
+
+        .search-input-wrapper {
+            position: relative;
+            flex: 1;
+        }
+
+        .search-icon-left {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--whatsapp-dark-gray);
+            pointer-events: none;
+            font-size: 16px;
+        }
+
+        .search-box {
+            background: var(--whatsapp-light-gray);
+            border: none;
+            border-radius: 20px;
+            padding: 10px 16px 10px 40px;
+            width: 100%;
+            font-size: 15px;
+            outline: none;
+            transition: background 0.2s;
+            direction: rtl;
+        }
+
+        .search-box:focus {
+            background: var(--whatsapp-white);
+            box-shadow: 0 0 0 1px var(--whatsapp-teal);
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--whatsapp-dark-gray);
+            pointer-events: none;
+        }
+
+        /* Chat Filters */
+        .chat-filters {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding: 4px 0;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .chat-filters::-webkit-scrollbar {
+            display: none;
+        }
+
+        .filter-btn {
+            background: var(--whatsapp-light-gray);
+            border: none;
+            border-radius: 20px;
+            padding: 6px 16px;
+            font-size: 14px;
+            color: var(--whatsapp-dark-gray);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .filter-btn:hover {
+            background: var(--whatsapp-gray);
+        }
+
+        .filter-btn.active {
+            background: var(--whatsapp-light-green);
+            color: var(--whatsapp-teal);
+            font-weight: 500;
+        }
+
+        .filter-btn.add-btn {
+            background: var(--whatsapp-gray);
+            padding: 6px 12px;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .filter-btn.add-btn:hover {
+            background: var(--whatsapp-dark-gray);
+            color: var(--whatsapp-white);
+        }
+
+        /* Chat List */
+        .chat-list {
+            flex: 1;
+            overflow-y: auto;
+            background: var(--whatsapp-white);
+        }
+
+        .chat-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .chat-list::-webkit-scrollbar-thumb {
+            background: rgba(0,0,0,0.2);
+            border-radius: 3px;
+        }
+
+        /* Chat Item */
+        .chat-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--whatsapp-gray);
+            transition: all 0.2s ease;
+            text-decoration: none;
+            color: inherit;
+            position: relative;
+        }
+
+        .chat-item:hover {
+            background: var(--whatsapp-hover);
+        }
+
+        .chat-item.active {
+            background: var(--whatsapp-gray);
+        }
+        
+        .chat-item:active {
+            transform: scale(0.98);
+        }
+        
+        /* تأثير عند إضافة محادثة جديدة */
+        .chat-item.new-chat {
+            animation: slideInFromTop 0.3s ease;
+        }
+        
+        @keyframes slideInFromTop {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .chat-item .avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--whatsapp-light-green) 0%, #B8E6B8 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            color: var(--whatsapp-teal);
+            margin-left: 12px;
+            flex-shrink: 0;
+            box-shadow: var(--shadow-sm);
+            transition: all var(--transition-base);
+            border: 2px solid rgba(255,255,255,0.5);
+        }
+
+        .chat-item:hover .avatar {
+            transform: scale(1.05);
+            box-shadow: var(--shadow-md);
+        }
+
+        .chat-item .avatar img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .chat-item .chat-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .chat-item .chat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .chat-item .chat-name {
+            font-weight: 500;
+            font-size: 16px;
+            color: #111;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .chat-item .chat-time {
+            font-size: 12px;
+            color: var(--whatsapp-dark-gray);
+            white-space: nowrap;
+        }
+
+        .chat-item .chat-preview {
+            font-size: 14px;
+            color: var(--whatsapp-dark-gray);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            justify-content: space-between;
+        }
+
+        .chat-item .preview-text {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .chat-item .unread-badge {
+            background: linear-gradient(135deg, var(--whatsapp-green) 0%, var(--whatsapp-dark-green) 100%);
+            color: var(--whatsapp-white);
+            border-radius: 12px;
+            padding: 3px 9px;
+            font-size: 12px;
+            font-weight: 700;
+            min-width: 22px;
+            height: 22px;
+            text-align: center;
+            flex-shrink: 0;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: bounce 0.5s ease;
+        }
+
+        @keyframes bounce {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+        }
+
+        /* Floating Action Button */
+        .fab-button {
+            position: fixed;
+            bottom: 80px;
+            left: 20px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--whatsapp-green) 0%, var(--whatsapp-dark-green) 100%);
+            color: var(--whatsapp-white);
+            border: none;
+            box-shadow: var(--shadow-lg);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            z-index: 1000;
+            transition: all var(--transition-base);
+            border: 3px solid rgba(255,255,255,0.3);
+        }
+
+        .fab-button:hover {
+            background: linear-gradient(135deg, var(--whatsapp-dark-green) 0%, var(--whatsapp-green) 100%);
+            transform: scale(1.1) rotate(90deg);
+            box-shadow: var(--shadow-xl);
+        }
+
+        .fab-button:active {
+            transform: scale(0.95) rotate(90deg);
+        }
+
+        .fab-button i {
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+        }
+
+        @media (min-width: 769px) {
+            .fab-button {
+                left: 370px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .fab-button {
+                bottom: 70px;
+            }
+        }
+
+        .chat-item .online-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--whatsapp-green);
+            border: 2.5px solid var(--whatsapp-white);
+            position: absolute;
+            bottom: 2px;
+            left: 2px;
+            box-shadow: 0 0 0 2px rgba(37, 211, 102, 0.2);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 0 0 2px rgba(37, 211, 102, 0.2);
+            }
+            50% {
+                box-shadow: 0 0 0 4px rgba(37, 211, 102, 0.1);
+            }
+        }
+
+        /* Chat Window Panel */
+        .chat-window-panel {
+            background: var(--whatsapp-white);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            height: 100dvh; /* استخدام dvh للدعم الحديث */
+            overflow: hidden;
+            position: relative;
+        }
+        
+        /* على الموبايل، إخفاء navigation bar في صفحة الدردشة */
+        @media (max-width: 768px) {
+            body:has(.chat-room-page) .main-nav-menu {
+                display: none !important;
+            }
+        }
+
+        /* Chat Window Header */
+        .chat-window-header {
+            background: var(--whatsapp-teal);
+            color: var(--whatsapp-white);
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+
+        .chat-window-header .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex: 1;
+        }
+
+        .chat-window-header .back-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--whatsapp-white);
+            font-size: 20px;
+            cursor: pointer;
+            padding: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .chat-window-header .back-btn {
+                display: block;
+            }
+        }
+
+        .chat-window-header .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--whatsapp-light-green) 0%, #B8E6B8 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            box-shadow: var(--shadow-sm);
+            border: 2px solid rgba(255,255,255,0.3);
+            transition: all var(--transition-base);
+        }
+
+        .chat-window-header .avatar:hover {
+            transform: scale(1.1);
+            box-shadow: var(--shadow-md);
+        }
+
+        .chat-window-header .avatar img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .chat-window-header .user-info {
+            flex: 1;
+        }
+
+        .chat-window-header .user-name {
+            font-weight: 500;
+            font-size: 16px;
+        }
+
+        .chat-window-header .user-status {
+            font-size: 13px;
+            opacity: 0.9;
+        }
+
+        .chat-window-header .header-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        /* Messages Container */
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='grid' width='20' height='20' patternUnits='userSpaceOnUse'%3E%3Cpath d='M 20 0 L 0 0 0 20' fill='none' stroke='%23e5ddd5' stroke-width='0.5'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='100' height='100' fill='url(%23grid)'/%3E%3C/svg%3E");
+            background-color: #EFEAE2;
+        }
+
+        .messages-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .messages-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .messages-container::-webkit-scrollbar-thumb {
+            background: rgba(0,0,0,0.2);
+            border-radius: 3px;
+        }
+
+        /* Message */
+        .message {
+            display: flex;
+            margin-bottom: 8px;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.sent {
+            justify-content: flex-end;
+        }
+
+        .message.received {
+            justify-content: flex-start;
+        }
+
+        .message-bubble {
+            max-width: 65%;
+            padding: 10px 14px;
+            border-radius: var(--radius-md);
+            position: relative;
+            word-wrap: break-word;
+            box-shadow: var(--shadow-sm);
+            transition: all var(--transition-fast);
+            backdrop-filter: blur(10px);
+        }
+
+        .message-bubble:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-1px);
+        }
+
+        /* Mobile adjustments for message bubbles */
+        @media (max-width: 768px) {
+            .message-bubble {
+                max-width: 85%;
+                padding: 10px 14px;
+                font-size: 15px;
+            }
+            
+            .message-input-container {
+                padding: 8px 12px;
+                padding-bottom: max(8px, env(safe-area-inset-bottom)); /* دعم safe area في iOS */
+                background: var(--whatsapp-white);
+                border-top: 1px solid var(--whatsapp-gray);
+            }
+            
+            .message-input-container input {
+                font-size: 16px; /* منع التكبير التلقائي في iOS */
+            }
+            
+            /* تحسين أهداف اللمس */
+            .icon-btn, .send-btn {
+                min-width: 44px;
+                min-height: 44px;
+            }
+            
+            /* تحسين messages container على الموبايل */
+            .messages-container {
+                padding: 10px 12px;
+                padding-bottom: max(10px, env(safe-area-inset-bottom));
+            }
+            
+            /* تحسين header على الموبايل */
+            .chat-window-header {
+                padding: 10px 12px;
+                padding-top: max(10px, env(safe-area-inset-top));
+            }
+            
+            /* إخفاء navigation bar في صفحة الدردشة على الموبايل */
+            .chat-room-page ~ * .main-nav-menu,
+            body:has(.chat-room-page) .main-nav-menu {
+                display: none !important;
+            }
+        }
+
+        .message.sent .message-bubble {
+            background: linear-gradient(135deg, var(--whatsapp-light-green) 0%, #E8F5E9 100%);
+            border-bottom-right-radius: 4px;
+            border-top-right-radius: var(--radius-md);
+            border-top-left-radius: var(--radius-md);
+            border-bottom-left-radius: var(--radius-md);
+        }
+
+        .message.received .message-bubble {
+            background: linear-gradient(135deg, var(--whatsapp-white) 0%, #FAFAFA 100%);
+            border-bottom-left-radius: 4px;
+            border-top-right-radius: var(--radius-md);
+            border-top-left-radius: var(--radius-md);
+            border-bottom-right-radius: var(--radius-md);
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .message-time {
+            font-size: 11px;
+            color: rgba(0,0,0,0.5);
+            margin-top: 4px;
+            text-align: left;
+        }
+
+        .message.sent .message-time {
+            text-align: right;
+        }
+
+        /* Message Input */
+        .message-input-container {
+            background: var(--whatsapp-white);
+            padding: 8px 16px;
+            border-top: 1px solid var(--whatsapp-gray);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .message-input-container .input-group {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            background: var(--whatsapp-white);
+            border-radius: 25px;
+            padding: 6px 12px;
+            border: 1px solid var(--whatsapp-gray);
+        }
+
+        .message-input-container input {
+            flex: 1;
+            border: none;
+            outline: none;
+            padding: 8px 12px;
+            font-size: 15px;
+            background: transparent;
+        }
+
+        .message-input-container .icon-btn {
+            background: none;
+            border: none;
+            color: var(--whatsapp-dark-gray);
+            font-size: 22px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            transition: all var(--transition-base);
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .message-input-container .icon-btn:hover {
+            background: var(--whatsapp-hover);
+            transform: scale(1.1);
+            color: var(--whatsapp-teal);
+        }
+
+        .message-input-container .icon-btn:active {
+            transform: scale(0.95);
+        }
+
+        .message-input-container .icon-btn i {
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));
+        }
+
+        .message-input-container .send-btn {
+            background: linear-gradient(135deg, var(--whatsapp-green) 0%, var(--whatsapp-dark-green) 100%);
+            color: var(--whatsapp-white);
+            border: none;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all var(--transition-base);
+            box-shadow: var(--shadow-sm);
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+
+        .message-input-container .send-btn:hover {
+            background: linear-gradient(135deg, var(--whatsapp-dark-green) 0%, var(--whatsapp-green) 100%);
+            transform: scale(1.1) rotate(-15deg);
+            box-shadow: var(--shadow-md);
+        }
+
+        .message-input-container .send-btn:active {
+            transform: scale(0.95) rotate(-15deg);
+        }
+
+        .message-input-container .send-btn i {
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
+        }
+
+        /* Empty State */
+        .empty-chat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--whatsapp-dark-gray);
+            text-align: center;
+            padding: 40px;
+        }
+
+        .empty-chat i {
+            font-size: 120px;
+            opacity: 0.3;
+            margin-bottom: 20px;
+            color: var(--whatsapp-teal);
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        /* Loading Spinner */
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: var(--whatsapp-white);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Utility Classes */
+        .hidden {
+            display: none !important;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        /* Navbar Override */
+        .navbar {
+            display: none;
+        }
+
+        /* Container Override */
+        .container, .container-fluid {
+            padding: 0;
+            margin: 0;
+            max-width: 100%;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .whatsapp-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Page Content Styles */
+        .spa-container {
+            position: relative;
+            width: 100%;
+            min-height: calc(100vh - 70px);
+            display: block;
+            margin-top: 70px; /* مساحة للشريط العلوي */
+        }
+
+        .spa-content {
+            position: relative;
+            width: 100%;
+            min-height: calc(100vh - 70px);
+            display: block;
+            visibility: visible;
+            opacity: 1;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Navigation Menu */
+        .main-nav-menu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: var(--whatsapp-white);
+            border-bottom: 1px solid var(--whatsapp-gray);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 10px 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            height: 70px;
+        }
+
+        .nav-menu-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            padding: 8px 15px;
+            text-decoration: none;
+            color: var(--whatsapp-dark-gray);
+            transition: all 0.3s;
+            border-radius: 8px;
+            min-width: 70px;
+            position: relative;
+        }
+
+        .nav-menu-item i {
+            font-size: 22px;
+        }
+
+        .nav-menu-item span {
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .nav-menu-item .nav-badge {
+            position: absolute;
+            top: 4px;
+            left: 50%;
+            transform: translateX(14px);
+            background: var(--whatsapp-green);
+            color: var(--whatsapp-white);
+            font-size: 11px;
+            font-weight: 600;
+            min-width: 18px;
+            padding: 2px 6px;
+            border-radius: 999px;
+            line-height: 1;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            display: none;
+        }
+
+        .nav-menu-item .nav-badge.visible {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .nav-menu-item.active {
+            color: var(--whatsapp-teal);
+        }
+
+        .nav-menu-item:hover {
+            background: var(--whatsapp-hover);
+        }
+
+        .nav-menu-item.active i {
+            color: var(--whatsapp-teal);
+        }
+
+        /* Loading Overlay */
+        .spa-loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .spa-loading.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .spa-loading .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--whatsapp-gray);
+            border-top-color: var(--whatsapp-teal);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Page Transitions */
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .page-transition-enter {
+            animation: slideInRight 0.3s ease-out;
+        }
+
+        .page-transition-exit {
+            animation: slideInLeft 0.3s ease-out;
+        }
+
+        /* Ensure content is visible during transitions */
+        #spaContent > * {
+            animation: fadeInUp 0.3s ease-out;
+        }
+
+        /* Mobile navigation adjustments */
+        @media (max-width: 768px) {
+            .main-nav-menu {
+                height: 60px;
+                padding: 8px 0;
+                box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            }
+
+            .nav-menu-item {
+                padding: 6px 10px;
+                min-width: 60px;
+            }
+
+            .nav-menu-item i {
+                font-size: 20px;
+            }
+
+            .nav-menu-item span {
+                font-size: 11px;
+            }
+
+            .spa-container {
+                margin-top: 60px; /* مساحة للشريط العلوي على الموبايل */
+            }
+            
+            body {
+                padding-top: 60px; /* مساحة للشريط العلوي */
+            }
+        }
+        
+        /* شاشات متوسطة (Tablets) */
+        @media (min-width: 481px) and (max-width: 768px) {
+            .message-bubble {
+                max-width: 75%;
+            }
+            
+            .chat-item .avatar {
+                width: 52px;
+                height: 52px;
+            }
+            
+            .fab-button {
+                width: 52px;
+                height: 52px;
+                font-size: 22px;
+            }
+        }
+        
+        /* شاشات صغيرة جداً (أقل من 360px) */
+        @media (max-width: 360px) {
+            .chat-item .avatar {
+                width: 45px;
+                height: 45px;
+                font-size: 20px;
+                margin-left: 10px;
+            }
+            
+            .chat-item .chat-name {
+                font-size: 15px;
+            }
+            
+            .chat-item .chat-preview {
+                font-size: 13px;
+            }
+            
+            .chat-item .chat-time {
+                font-size: 11px;
+            }
+            
+            .message-bubble {
+                max-width: 90%;
+                padding: 8px 12px;
+                font-size: 14px;
+            }
+            
+            .fab-button {
+                width: 50px;
+                height: 50px;
+                font-size: 22px;
+                bottom: 70px;
+                left: 15px;
+            }
+            
+            .chat-list-header,
+            .chat-window-header {
+                padding: 8px 10px;
+            }
+            
+            .chat-list-header .icon-btn,
+            .chat-window-header .icon-btn {
+                width: 36px;
+                height: 36px;
+                font-size: 18px;
+                padding: 6px;
+            }
+            
+            .message-input-container {
+                padding: 8px 10px;
+            }
+            
+            .message-input-container .icon-btn,
+            .message-input-container .send-btn {
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
+            }
+            
+            .nav-menu-item {
+                padding: 5px 8px;
+                min-width: 55px;
+            }
+            
+            .nav-menu-item i {
+                font-size: 18px;
+            }
+            
+            .nav-menu-item span {
+                font-size: 10px;
+            }
+        }
+        
+        /* شاشات كبيرة (Tablets كبيرة و Desktops صغيرة) */
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .whatsapp-container {
+                grid-template-columns: 320px 1fr;
+            }
+            
+            .message-bubble {
+                max-width: 70%;
+            }
+        }
+        
+        /* شاشات كبيرة (أكبر من 1024px) */
+        @media (min-width: 1024px) {
+            .whatsapp-container {
+                max-width: 1400px;
+            }
+            
+            .message-bubble {
+                max-width: 60%;
+            }
+            
+            .chat-item {
+                padding: 14px 20px;
+            }
+            
+            .chat-item .avatar {
+                width: 55px;
+                height: 55px;
+                font-size: 24px;
+            }
+            
+            .chat-list-header,
+            .chat-window-header {
+                padding: 12px 20px;
+            }
+        }
+        
+        /* شاشات كبيرة جداً (أكبر من 1440px) */
+        @media (min-width: 1440px) {
+            .whatsapp-container {
+                max-width: 1600px;
+            }
+            
+            .message-bubble {
+                max-width: 55%;
+                padding: 12px 16px;
+            }
+            
+            .chat-item {
+                padding: 16px 24px;
+            }
+        }
+        
+        /* تحسينات للشاشات الكبيرة جداً */
+        @media (min-width: 1920px) {
+            .whatsapp-container {
+                max-width: 1800px;
+            }
+        }
+        
+        /* Landscape orientation على الموبايل */
+        @media (max-width: 768px) and (orientation: landscape) {
+            .main-nav-menu {
+                height: 55px;
+            }
+            
+            .nav-menu-item {
+                padding: 5px 8px;
+            }
+            
+            .nav-menu-item span {
+                font-size: 10px;
+            }
+            
+            body {
+                padding-top: 55px;
+            }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Page Content Container -->
+    <div class="spa-container" id="spaContainer">
+        <div class="spa-content" id="spaContent">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <!-- Navigation Menu -->
+    {% if user.is_authenticated %}
+    <nav class="main-nav-menu">
+        <a href="/chats/" class="nav-menu-item" data-route="chats">
+            <i class="fas fa-comments"></i>
+            <span>الدردشات</span>
+        </a>
+        <a href="/groups/" class="nav-menu-item" data-route="groups">
+            <i class="fas fa-users"></i>
+            <span>المجموعات</span>
+        </a>
+        <a href="/stories/" class="nav-menu-item" data-route="stories">
+            <i class="fas fa-circle"></i>
+            <span>الاستوريات</span>
+            <span class="nav-badge" id="storiesNavBadge" hidden></span>
+        </a>
+        <a href="/search/" class="nav-menu-item" data-route="search">
+            <i class="fas fa-search"></i>
+            <span>البحث</span>
+        </a>
+        <a href="/settings/" class="nav-menu-item" data-route="settings">
+            <i class="fas fa-cog"></i>
+            <span>الإعدادات</span>
+        </a>
+    </nav>
+    {% endif %}
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function clearStoredAuthToken() {
+            try {
+                localStorage.removeItem('auth_token');
+                localStorage.removeItem('session_token');
+                localStorage.removeItem('session_device_id');
+            } catch (err) {}
+            document.cookie = 'auth_token=; Max-Age=0; path=/; SameSite=Lax';
+            document.cookie = 'session_token=; Max-Age=0; path=/; SameSite=Lax';
+            document.cookie = 'session_device_id=; Max-Age=0; path=/; SameSite=Lax';
+        }
+
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) {
+                return parts.pop().split(';').shift();
+            }
+            return null;
+        }
+
+        function syncSessionTokensFromCookies() {
+            const authTokenCookie = getCookie('auth_token');
+            const sessionTokenCookie = getCookie('session_token');
+            const deviceIdCookie = getCookie('session_device_id');
+
+            try {
+                if (authTokenCookie) {
+                    localStorage.setItem('auth_token', authTokenCookie);
+                }
+                if (sessionTokenCookie) {
+                    localStorage.setItem('session_token', sessionTokenCookie);
+                }
+                if (deviceIdCookie) {
+                    localStorage.setItem('session_device_id', deviceIdCookie);
+                }
+            } catch (err) {
+                console.warn('Unable to sync tokens to localStorage:', err);
+            }
+        }
+
+        function persistSessionPayload(data) {
+            if (!data) {
+                return;
+            }
+
+            const { auth_token: authToken, session } = data;
+            const maxAgeAuth = 60 * 60 * 24 * 365; // سنة كاملة
+            const maxAgeSession = 60 * 60 * 24 * 90; // 90 يوم
+
+            if (authToken) {
+                try {
+                    localStorage.setItem('auth_token', authToken);
+                } catch (err) {}
+                document.cookie = `auth_token=${authToken}; path=/; max-age=${maxAgeAuth}; SameSite=Lax`;
+            }
+
+            if (session) {
+                const { session_token: sessionToken, device_id: deviceId } = session;
+                if (sessionToken) {
+                    try {
+                        localStorage.setItem('session_token', sessionToken);
+                    } catch (err) {}
+                    document.cookie = `session_token=${sessionToken}; path=/; max-age=${maxAgeSession}; SameSite=Lax`;
+                }
+                if (deviceId) {
+                    try {
+                        localStorage.setItem('session_device_id', deviceId);
+                    } catch (err) {}
+                    document.cookie = `session_device_id=${deviceId}; path=/; max-age=${maxAgeSession}; SameSite=Lax`;
+                }
+            }
+        }
+
+        async function validateStoredSessionToken(options = {}) {
+            const { silent = false } = options;
+
+            syncSessionTokensFromCookies();
+
+            const sessionToken = localStorage.getItem('session_token');
+            const deviceId = localStorage.getItem('session_device_id');
+
+            if (!sessionToken || !deviceId) {
+                return { valid: false };
+            }
+
+            try {
+                const response = await window.apiFetch('session-devices/validate_token/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        session_token: sessionToken,
+                        device_id: deviceId
+                    })
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        clearStoredAuthToken();
+                    }
+                    return { valid: false };
+                }
+
+                const data = await response.json();
+                if (data && data.valid) {
+                    persistSessionPayload(data);
+                    return { valid: true, data };
+                }
+
+                if (!silent) {
+                    console.info('Session validation failed:', data);
+                }
+                return { valid: false };
+            } catch (error) {
+                if (!silent) {
+                    console.error('Error validating session token:', error);
+                }
+                return { valid: false, error };
+            }
+        }
+    </script>
+
+    {% if user.is_authenticated %}
+    <script>
+        (function() {
+            if (typeof window.updateStoriesBadge !== 'function') {
+                window.updateStoriesBadge = function(count) {
+                    const badge = document.getElementById('storiesNavBadge');
+                    if (!badge) {
+                        return;
+                    }
+                    if (count && count > 0) {
+                        badge.textContent = count > 99 ? '99+' : count;
+                        badge.classList.add('visible');
+                        badge.removeAttribute('hidden');
+                    } else {
+                        badge.textContent = '';
+                        badge.classList.remove('visible');
+                        badge.setAttribute('hidden', 'hidden');
+                    }
+                };
+            }
+
+            if (window.AppNotifications) {
+                window.AppNotifications.ensureConnected?.();
+                if (typeof window.refreshStoriesBadge !== 'function') {
+                    window.refreshStoriesBadge = async function(force = false) {
+                        if (window.__storiesBadgePromise && !force) {
+                            return window.__storiesBadgePromise;
+                        }
+                        window.__storiesBadgePromise = window.apiFetch('stories/feed/', {
+                            method: 'GET',
+                            credentials: 'include'
+                        }).then(response => {
+                            if (!response.ok) {
+                                throw new Error('Failed to load stories feed');
+                            }
+                            return response.json();
+                        }).then(data => {
+                            const badgeCount = data?.badge_count ?? 0;
+                            window.updateStoriesBadge(badgeCount);
+                            return badgeCount;
+                        }).catch(error => {
+                            console.warn('Unable to refresh stories badge:', error);
+                            return null;
+                        }).finally(() => {
+                            window.__storiesBadgePromise = null;
+                        });
+                        return window.__storiesBadgePromise;
+                    };
+                }
+
+                window.refreshStoriesBadge();
+                window.AppNotifications.addListener?.(function(payload) {
+                    if (payload && payload.type === 'stories_refresh') {
+                        window.refreshStoriesBadge(true);
+                    }
+                });
+                return;
+            }
+
+            if (!('WebSocket' in window)) {
+                if (typeof window.refreshStoriesBadge !== 'function') {
+                    window.refreshStoriesBadge = async function() {
+                        try {
+                            const response = await window.apiFetch('stories/feed/', {
+                                method: 'GET',
+                                credentials: 'include'
+                            });
+                            if (!response.ok) {
+                                return;
+                            }
+                            const data = await response.json();
+                            const badgeCount = data?.badge_count ?? 0;
+                            window.updateStoriesBadge(badgeCount);
+                        } catch (err) {
+                            console.warn('Unable to refresh stories badge without WebSocket support:', err);
+                        }
+                    };
+                }
+                window.refreshStoriesBadge();
+                return;
+            }
+
+            const listeners = new Set();
+            const pendingMessages = [];
+            const state = {
+                socket: null,
+                reconnectAttempts: 0,
+                maxReconnect: 6,
+                isConnecting: false
+            };
+
+            async function resolveAuthToken() {
+                if (typeof window.getAuthToken === 'function') {
+                    const inherited = await window.getAuthToken();
+                    if (inherited) {
+                        return inherited;
+                    }
+                }
+                try {
+                    const token = localStorage.getItem('auth_token');
+                    if (token) {
+                        return token;
+                    }
+                } catch (error) {
+                    console.warn('Unable to access auth_token from storage:', error);
+                }
+                return null;
+            }
+
+            window.getAuthToken = resolveAuthToken;
+
+            function notifyListeners(payload) {
+                listeners.forEach(listener => {
+                    try {
+                        listener(payload);
+                    } catch (err) {
+                        console.error('Notifications listener failed', err);
+                    }
+                });
+
+                try {
+                    window.dispatchEvent(new CustomEvent('notifications:message', {
+                        detail: payload
+                    }));
+                } catch (err) {
+                    console.warn('Failed to dispatch notifications event', err);
+                }
+
+                if (payload && payload.type === 'stories_refresh') {
+                    window.refreshStoriesBadge(true);
+                }
+            }
+
+            async function openSocket() {
+                if (state.isConnecting) {
+                    return;
+                }
+                state.isConnecting = true;
+
+                try {
+                    const buildWsUrl = window.buildWsUrl || ((path = '') => {
+                        const fallback = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
+                        const base = fallback.replace(/\/+$/, '');
+                        const cleaned = String(path || '').replace(/^\/+/, '');
+                        return cleaned ? `${base}/${cleaned}` : base;
+                    });
+                    const token = await resolveAuthToken();
+                    const wsPath = token
+                        ? `ws/notifications/?token=${encodeURIComponent(token)}`
+                        : 'ws/notifications/';
+
+                    const socket = new WebSocket(buildWsUrl(wsPath));
+                    state.socket = socket;
+
+                    socket.onopen = function() {
+                        state.isConnecting = false;
+                        state.reconnectAttempts = 0;
+                        while (pendingMessages.length && socket.readyState === WebSocket.OPEN) {
+                            socket.send(pendingMessages.shift());
+                        }
+                    };
+
+                    socket.onmessage = function(event) {
+                        let payload = null;
+                        try {
+                            payload = JSON.parse(event.data);
+                        } catch (error) {
+                            console.warn('Received non-JSON notification payload', event.data);
+                            return;
+                        }
+                        notifyListeners(payload);
+                    };
+
+                    socket.onerror = function(error) {
+                        console.error('Notifications WebSocket error:', error);
+                    };
+
+                    socket.onclose = function() {
+                        state.socket = null;
+                        state.isConnecting = false;
+                        if (state.reconnectAttempts < state.maxReconnect) {
+                            const delay = Math.min(1000 * Math.pow(2, state.reconnectAttempts), 15000);
+                            state.reconnectAttempts += 1;
+                            setTimeout(ensureConnected, delay);
+                        }
+                    };
+                } catch (error) {
+                    state.socket = null;
+                    state.isConnecting = false;
+                    console.error('Failed to open notifications WebSocket:', error);
+                    if (state.reconnectAttempts < state.maxReconnect) {
+                        const delay = Math.min(1000 * Math.pow(2, state.reconnectAttempts), 15000);
+                        state.reconnectAttempts += 1;
+                        setTimeout(ensureConnected, delay);
+                    }
+                }
+            }
+
+            function ensureConnected() {
+                if (state.socket && (state.socket.readyState === WebSocket.OPEN || state.socket.readyState === WebSocket.CONNECTING)) {
+                    return state.socket;
+                }
+                openSocket();
+                return state.socket;
+            }
+
+            window.updateStoriesBadge = window.updateStoriesBadge || function() {};
+
+            window.refreshStoriesBadge = async function(force = false) {
+                if (window.__storiesBadgePromise && !force) {
+                    return window.__storiesBadgePromise;
+                }
+                window.__storiesBadgePromise = window.apiFetch('stories/feed/', {
+                    method: 'GET',
+                    credentials: 'include'
+                }).then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to load stories feed');
+                    }
+                    return response.json();
+                }).then(data => {
+                    const badgeCount = data?.badge_count ?? 0;
+                    window.updateStoriesBadge(badgeCount);
+                    return badgeCount;
+                }).catch(error => {
+                    console.warn('Unable to refresh stories badge:', error);
+                    return null;
+                }).finally(() => {
+                    window.__storiesBadgePromise = null;
+                });
+                return window.__storiesBadgePromise;
+            };
+
+            window.AppNotifications = {
+                addListener(handler) {
+                    if (typeof handler !== 'function') {
+                        return () => {};
+                    }
+                    listeners.add(handler);
+                    ensureConnected();
+                    return () => listeners.delete(handler);
+                },
+                removeListener(handler) {
+                    listeners.delete(handler);
+                },
+                send(message) {
+                    const payload = typeof message === 'string' ? message : JSON.stringify(message);
+                    if (state.socket && state.socket.readyState === WebSocket.OPEN) {
+                        state.socket.send(payload);
+                    } else {
+                        pendingMessages.push(payload);
+                        ensureConnected();
+                    }
+                },
+                ensureConnected,
+                get socket() {
+                    return state.socket;
+                }
+            };
+
+            ensureConnected();
+            window.refreshStoriesBadge();
+        })();
+    </script>
+    {% endif %}
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('{% static "pwa/sw.js" %}').catch((error) => {
+                    console.error('فشل تسجيل Service Worker:', error);
+                });
+
+                const firebaseConfig = window.__APP_CONFIG__?.firebaseConfig || {};
+                if (firebaseConfig && firebaseConfig.apiKey) {
+                    navigator.serviceWorker.register('{% static "pwa/firebase-messaging-sw.js" %}')
+                        .then(() => navigator.serviceWorker.ready)
+                        .then((registration) => {
+                            const configPayload = {
+                                ...firebaseConfig,
+                                messagingSenderId: firebaseConfig.messagingSenderId || window.__APP_CONFIG__?.fcmWebPushSenderId,
+                            };
+                            registration.active?.postMessage({
+                                type: 'FCM_INIT',
+                                payload: { config: configPayload },
+                            });
+                        })
+                        .catch((error) => {
+                            console.error('فشل تسجيل Firebase Messaging Service Worker:', error);
+                        });
+                }
+            });
+        }
+    </script>
+
+    <!-- Simple Navigation Helper -->
+    <script>
+        // Simple Navigation Helper - مساعد بسيط للتنقل
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set active nav item
+            const currentPath = window.location.pathname;
+            document.querySelectorAll('.nav-menu-item').forEach(item => {
+                const href = item.getAttribute('href');
+                if (href && (currentPath === href || currentPath.startsWith(href))) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+            
+            // Add smooth transition effect to page content
+            const spaContent = document.getElementById('spaContent');
+            if (spaContent) {
+                spaContent.style.opacity = '0';
+                spaContent.style.transform = 'translateY(10px)';
+                
+                setTimeout(() => {
+                    spaContent.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                    spaContent.style.opacity = '1';
+                    spaContent.style.transform = 'translateY(0)';
+                }, 50);
+            }
+        });
+        
+        // Add page transition on navigation
+        window.addEventListener('beforeunload', function() {
+            const spaContent = document.getElementById('spaContent');
+            if (spaContent) {
+                spaContent.style.transition = 'opacity 0.2s ease';
+                spaContent.style.opacity = '0';
+            }
+        });
+    </script>
+    
+    {% if user.is_authenticated %}
+    <script>
+        window.addEventListener('DOMContentLoaded', async function() {
+            syncSessionTokensFromCookies();
+            try {
+                const response = await window.apiFetch('users/auth_token/', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data && data.token) {
+                        persistSessionPayload({ auth_token: data.token });
+                    }
+                }
+            } catch (error) {
+                console.error('Error ensuring auth token:', error);
+            }
+        });
+    </script>
+    {% endif %}
+
+    {% if not user.is_authenticated %}
+    <script>
+        let navigationInProgress = false;
+        let tokenCheckDone = false;
+        
+        function safeNavigate(url) {
+            if (navigationInProgress) return;
+            navigationInProgress = true;
+            window.location.replace(url);
+        }
+        
+        window.addEventListener('DOMContentLoaded', async function() {
+            if (tokenCheckDone) return;
+            tokenCheckDone = true;
+
+            syncSessionTokensFromCookies();
+
+            const currentPath = window.location.pathname;
+            const publicPages = ['/', '/admin/', '/terms/', '/accept-terms/', '/register/'];
+
+            // محاولة تسجيل الدخول باستخدام session_token المخزن
+            const validationResult = await validateStoredSessionToken({ silent: true });
+            if (validationResult.valid) {
+                const defaultTarget = '/dashboard/';
+                if (!currentPath.startsWith('/dashboard') && !currentPath.startsWith('/chats/') && !currentPath.startsWith('/stories/') && !currentPath.startsWith('/groups/')) {
+                    safeNavigate(defaultTarget);
+                }
+                return;
+            }
+            
+            const token = localStorage.getItem('auth_token');
+            
+            if (!publicPages.includes(currentPath) && !token) {
+                // في مرحلة التطوير، السماح بالوصول بدون token
+            }
+            
+            if (token && !publicPages.includes(currentPath)) {
+                try {
+                    const response = await window.apiFetch('users/me/', {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Token ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        clearStoredAuthToken();
+                    }
+                } catch (error) {
+                    console.error('Error checking token:', error);
+                }
+            }
+        });
+    </script>
+    {% endif %}
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

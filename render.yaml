@@ -1,0 +1,54 @@
+services:
+  - type: web
+    name: arab-chat-web
+    env: python
+    plan: free
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+      python manage.py collectstatic --noinput
+    startCommand: daphne -b 0.0.0.0 -p $PORT arab_chat.asgi:application
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: arab_chat.settings_production
+      - key: PYTHON_VERSION
+        value: 3.13.0
+      - key: REDIS_URL
+        fromService:
+          name: arab-chat-redis
+          type: redis
+          property: connectionString
+      - key: DATABASE_URL
+        fromDatabase:
+          name: arab-chat-db
+          property: connectionString
+
+  - type: worker
+    name: arab-chat-worker
+    env: python
+    plan: free
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+    startCommand: celery -A arab_chat worker --loglevel=info --pool=solo
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: arab_chat.settings_production
+      - key: REDIS_URL
+        fromService:
+          name: arab-chat-redis
+          type: redis
+          property: connectionString
+      - key: DATABASE_URL
+        fromDatabase:
+          name: arab-chat-db
+          property: connectionString
+
+  - name: arab-chat-redis
+    type: redis
+    plan: free
+
+databases:
+  - name: arab-chat-db
+    plan: free
+

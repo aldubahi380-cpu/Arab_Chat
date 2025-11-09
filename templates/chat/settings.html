@@ -1,0 +1,328 @@
+{% extends 'base.html' %}
+
+{% block title %}الإعدادات - عرب شات{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-cog"></i> الإعدادات</h4>
+                </div>
+                <div class="card-body">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" data-bs-toggle="tab" href="#account">الحساب</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#privacy">الخصوصية</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#notifications">الإشعارات</a>
+                        </li>
+                    </ul>
+                    
+                    <div class="tab-content mt-3">
+                        <!-- الحساب -->
+                        <div id="account" class="tab-pane fade show active">
+                            <h5>إعدادات الحساب</h5>
+                            <form>
+                                <div class="mb-3">
+                                    <label class="form-label">اسم المستخدم</label>
+                                    <input type="text" class="form-control" value="{{ user.username }}" readonly>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">البريد الإلكتروني</label>
+                                    <input type="email" class="form-control" value="{{ user.email }}">
+                                </div>
+                                {% if profile %}
+                                    <div class="mb-3">
+                                        <label class="form-label">رقم الهاتف</label>
+                                        <input type="tel" class="form-control" value="{{ profile.phone }}" readonly>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">نبذة عني</label>
+                                        <textarea class="form-control" rows="3">{{ profile.bio }}</textarea>
+                                    </div>
+                                {% endif %}
+                                <button type="submit" class="btn btn-primary">حفظ التغييرات</button>
+                            </form>
+                        </div>
+                        
+                        <!-- الخصوصية -->
+                        <div id="privacy" class="tab-pane fade">
+                            <h5>إعدادات الخصوصية</h5>
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="showOnline">
+                                <label class="form-check-label" for="showOnline">
+                                    إظهار حالة الاتصال
+                                </label>
+                            </div>
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="showLastSeen">
+                                <label class="form-check-label" for="showLastSeen">
+                                    إظهار آخر ظهور
+                                </label>
+                            </div>
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="allowFriendRequests">
+                                <label class="form-check-label" for="allowFriendRequests">
+                                    السماح بطلبات الصداقة
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- الإشعارات -->
+                        <div id="notifications" class="tab-pane fade">
+                            <h5>إعدادات الإشعارات</h5>
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="messageNotifications" checked>
+                                <label class="form-check-label" for="messageNotifications">
+                                    إشعارات الرسائل
+                                </label>
+                            </div>
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="friendRequestNotifications" checked>
+                                <label class="form-check-label" for="friendRequestNotifications">
+                                    إشعارات طلبات الصداقة
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    <div class="d-grid gap-2">
+                        <button id="logoutButton" class="btn btn-warning" onclick="logoutDevice(this)" style="font-weight: 600;">
+                            <i class="fas fa-sign-out-alt"></i> تسجيل الخروج من هذا الجهاز
+                        </button>
+                        <button class="btn btn-danger" onclick="deleteAccount(this)" style="font-weight: 600;">
+                            <i class="fas fa-trash-alt"></i> حذف الحساب نهائياً
+                        </button>
+                        <small class="text-muted text-center mt-2">
+                            ⚠️ تسجيل الخروج سيعطّل جلسة هذا الجهاز فقط، بينما حذف الحساب سيزيل جميع بياناتك بشكل نهائي.
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const joinUrl = window.buildUrl || ((base, path = '') => {
+    const trimmedBase = (base || '').replace(/\/+$/, '');
+    const trimmedPath = String(path || '').replace(/^\/+/, '');
+    return trimmedPath ? `${trimmedBase}/${trimmedPath}` : trimmedBase;
+});
+const buildApiUrl = window.buildApiUrl || ((path = '') => joinUrl(window.API_BASE_URL || '/api', path));
+const apiFetch = (path, options) => fetch(buildApiUrl(path), options);
+
+let isLoggingOut = false;
+let isDeletingAccount = false;
+
+function buildAuthHeaders() {
+    const headers = { 'Content-Type': 'application/json' };
+    const token = localStorage.getItem('auth_token') || '';
+    if (token) {
+        headers['Authorization'] = `Token ${token}`;
+    }
+    return headers;
+}
+
+async function logoutDevice(button) {
+    if (isLoggingOut) {
+        return;
+    }
+
+    if (!confirm('هل تريد تسجيل الخروج من هذا الجهاز؟')) {
+        return;
+    }
+
+    isLoggingOut = true;
+    const originalText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري تسجيل الخروج...';
+
+    try {
+        if (typeof syncSessionTokensFromCookies === 'function') {
+            syncSessionTokensFromCookies();
+        }
+
+        const payload = {
+            session_token: localStorage.getItem('session_token'),
+            device_id: localStorage.getItem('session_device_id')
+        };
+
+    const response = await apiFetch('users/logout/', {
+            method: 'POST',
+            headers: buildAuthHeaders(),
+            body: JSON.stringify(payload),
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error('فشل تسجيل الخروج من السيرفر');
+        }
+
+        clearStoredAuthToken();
+        localStorage.clear();
+        sessionStorage.clear();
+
+        alert('✅ تم تسجيل خروج هذا الجهاز بنجاح.');
+        window.location.replace('/terms/');
+    } catch (error) {
+        console.error('Error logging out:', error);
+        alert('❌ تعذّر تسجيل الخروج. يرجى المحاولة مرة أخرى.');
+        button.disabled = false;
+        button.innerHTML = originalText;
+        isLoggingOut = false;
+        return;
+    }
+}
+
+async function deleteAccount(button) {
+    if (isDeletingAccount) {
+        return;
+    }
+
+    const confirmationMessage = '⚠️ تحذير: هذا الإجراء سيحذف حسابك وبياناتك نهائياً ولا يمكن التراجع عنه.\n\nهل تريد المتابعة؟';
+    if (!confirm(confirmationMessage)) {
+        return;
+    }
+
+    const finalConfirmation = prompt('⚠️ تأكيد نهائي!\nاكتب "حذف" للتأكيد على حذف الحساب نهائياً.');
+    if (finalConfirmation !== 'حذف') {
+        alert('تم إلغاء عملية حذف الحساب.');
+        return;
+    }
+
+    isDeletingAccount = true;
+    const originalText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري حذف الحساب...';
+
+    try {
+        if (typeof syncSessionTokensFromCookies === 'function') {
+            syncSessionTokensFromCookies();
+        }
+
+        const response = await apiFetch('users/delete_account/', {
+            method: 'DELETE',
+            headers: buildAuthHeaders(),
+            credentials: 'include'
+        });
+
+        const data = await response.json().catch(() => ({}));
+
+        if (response.ok && data.success) {
+            clearStoredAuthToken();
+            localStorage.clear();
+            sessionStorage.clear();
+            alert('✅ تم حذف حسابك بنجاح.');
+            window.location.replace('/register/');
+        } else {
+            throw new Error(data.error || data.details || 'حدث خطأ أثناء حذف الحساب');
+        }
+    } catch (error) {
+        console.error('Error deleting account:', error);
+        alert('❌ تعذّر حذف الحساب: ' + error.message);
+        button.disabled = false;
+        button.innerHTML = originalText;
+        isDeletingAccount = false;
+        return;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof syncSessionTokensFromCookies === 'function') {
+        syncSessionTokensFromCookies();
+    }
+
+    let notificationSettings = {
+        sound: true,
+        browser: true,
+        enabled: true
+    };
+
+    try {
+        const savedSettings = localStorage.getItem('notificationSettings');
+        if (savedSettings) {
+            notificationSettings = { ...notificationSettings, ...JSON.parse(savedSettings) };
+        }
+    } catch (e) {
+        console.log('Error loading notification settings:', e);
+    }
+
+    const messageNotifications = document.getElementById('messageNotifications');
+    const friendRequestNotifications = document.getElementById('friendRequestNotifications');
+
+    if (messageNotifications) {
+        messageNotifications.checked = notificationSettings.enabled && notificationSettings.sound;
+        messageNotifications.addEventListener('change', function() {
+            notificationSettings.sound = this.checked;
+            notificationSettings.enabled = this.checked;
+            saveNotificationSettings();
+        });
+    }
+
+    if (friendRequestNotifications) {
+        friendRequestNotifications.checked = notificationSettings.browser;
+        friendRequestNotifications.addEventListener('change', function() {
+            notificationSettings.browser = this.checked;
+            if (this.checked && 'Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+            saveNotificationSettings();
+        });
+    }
+
+    if ('Notification' in window && Notification.permission === 'default') {
+        const notificationTab = document.querySelector('#notifications');
+        if (notificationTab) {
+            const permissionButton = document.createElement('button');
+            permissionButton.className = 'btn btn-primary btn-sm mt-2';
+            permissionButton.textContent = 'تفعيل إشعارات المتصفح';
+            permissionButton.onclick = function() {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        this.textContent = '✓ تم تفعيل الإشعارات';
+                        this.disabled = true;
+                    } else {
+                        alert('تم رفض الإذن. يرجى تفعيل الإشعارات من إعدادات المتصفح.');
+                    }
+                });
+            };
+            notificationTab.appendChild(permissionButton);
+        }
+    }
+
+    function saveNotificationSettings() {
+        try {
+            localStorage.setItem('notificationSettings', JSON.stringify(notificationSettings));
+        } catch (e) {
+            console.error('Error saving notification settings:', e);
+        }
+    }
+
+    if ('Notification' in window) {
+        const permissionStatus = document.createElement('small');
+        permissionStatus.className = 'text-muted d-block mt-2';
+        if (Notification.permission === 'granted') {
+            permissionStatus.textContent = '✓ تم تفعيل إشعارات المتصفح';
+            permissionStatus.classList.replace('text-muted', 'text-success');
+        } else if (Notification.permission === 'denied') {
+            permissionStatus.textContent = '✗ تم رفض إشعارات المتصفح';
+            permissionStatus.classList.replace('text-muted', 'text-danger');
+        } else {
+            permissionStatus.textContent = '⚠ لم يتم تفعيل إشعارات المتصفح بعد';
+        }
+        const notificationTab = document.querySelector('#notifications');
+        if (notificationTab) {
+            notificationTab.appendChild(permissionStatus);
+        }
+    }
+});
+</script>
+{% endblock %}
+

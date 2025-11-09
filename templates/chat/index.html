@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+
+{% block title %}عرب شات - الرئيسية{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="chat-container">
+            <div class="chat-header text-center">
+                <h2><i class="fas fa-comments"></i> مرحباً بك في عرب شات</h2>
+                <p>تطبيق الدردشة العربي المتكامل</p>
+            </div>
+            <div class="p-4">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="fas fa-mobile-alt"></i> تطبيق Android</h5>
+                                <p class="card-text">قم بتنزيل تطبيق Android للدردشة على الهاتف المحمول</p>
+                                <a href="#" class="btn btn-primary">تحميل التطبيق</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="fas fa-globe"></i> واجهة الويب</h5>
+                                <p class="card-text">استخدم واجهة الويب للدردشة من المتصفح</p>
+                                <a href="/chat/" class="btn btn-primary">ابدأ الدردشة</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="alert alert-info mt-4">
+                    <h5><i class="fas fa-info-circle"></i> معلومات المشروع</h5>
+                    <ul>
+                        <li><strong>Backend:</strong> Django</li>
+                        <li><strong>Frontend:</strong> Android + Web</li>
+                        <li><strong>Database:</strong> SQLite (التطوير) / MySQL (الإنتاج)</li>
+                        <li><strong>API:</strong> REST API للاتصال مع Android</li>
+                        <li><strong>Real-time:</strong> WebSocket للدردشة المباشرة</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// التحقق من session token عند تحميل الصفحة الرئيسية
+window.addEventListener('DOMContentLoaded', async function() {
+    if (typeof syncSessionTokensFromCookies === 'function') {
+        syncSessionTokensFromCookies();
+    }
+
+    if (typeof validateStoredSessionToken === 'function') {
+        const validation = await validateStoredSessionToken({ silent: true });
+        if (validation.valid) {
+            window.location.href = '/dashboard/';
+            return;
+        }
+    }
+
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+        return;
+    }
+
+    try {
+        const response = await window.apiFetch ? window.apiFetch('users/me/', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Token ${token}`,
+                'Content-Type': 'application/json'
+            }
+        }) : fetch('/api/users/me/', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Token ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            window.location.href = '/dashboard/';
+        } else {
+            if (typeof clearStoredAuthToken === 'function') {
+                clearStoredAuthToken();
+            } else {
+                localStorage.removeItem('auth_token');
+            }
+        }
+    } catch (error) {
+        console.error('Error checking token:', error);
+    }
+});
+</script>
+{% endblock %}
+

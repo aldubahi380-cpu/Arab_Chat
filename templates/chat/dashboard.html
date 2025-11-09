@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block title %}لوحة التحكم - عرب شات{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-container {
+        max-width: 1200px;
+        margin: 40px auto;
+        padding: 20px;
+        text-align: center;
+    }
+    
+    .dashboard-welcome {
+        background: var(--whatsapp-white);
+        border-radius: 20px;
+        padding: 60px 40px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    
+    .dashboard-welcome h1 {
+        color: var(--whatsapp-teal);
+        font-size: 36px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 15px;
+    }
+    
+    .dashboard-welcome p {
+        color: var(--whatsapp-dark-gray);
+        font-size: 18px;
+        line-height: 1.6;
+        margin-top: 20px;
+    }
+    
+    .dashboard-welcome i {
+        font-size: 48px;
+        color: var(--whatsapp-teal);
+    }
+    
+    @media (max-width: 768px) {
+        .dashboard-container {
+            margin: 20px auto;
+            padding: 10px;
+        }
+        
+        .dashboard-welcome {
+            padding: 40px 20px;
+        }
+        
+        .dashboard-welcome h1 {
+            font-size: 28px;
+        }
+        
+        .dashboard-welcome p {
+            font-size: 16px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-welcome">
+        <i class="fas fa-comments"></i>
+        <h1>مرحباً بك في عرب شات</h1>
+        <p>استخدم القائمة العلوية للتنقل بين الأقسام</p>
+        <p style="margin-top: 10px; opacity: 0.8; font-size: 16px;">
+            <i class="fas fa-comments"></i> الدردشات الخاصة | 
+            <i class="fas fa-users"></i> المجموعات | 
+            <i class="fas fa-circle"></i> الاستوريات | 
+            <i class="fas fa-search"></i> البحث | 
+            <i class="fas fa-cog"></i> الإعدادات
+        </p>
+        
+        {% if request.user.is_superuser or request.user.is_staff %}
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 2px dashed #ddd;">
+            <h5 style="color: var(--whatsapp-teal); margin-bottom: 15px;">
+                <i class="fas fa-tools"></i> أدوات التطوير
+            </h5>
+            <a href="{% url 'otp_test' %}" class="btn btn-info btn-lg" style="margin: 5px;">
+                <i class="fas fa-key"></i> اختبار OTP
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

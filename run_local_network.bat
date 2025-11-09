@@ -1,0 +1,49 @@
+@echo off
+chcp 65001 >nul
+cd /d "%~dp0"
+call my_env\Scripts\activate.bat
+
+echo.
+echo ============================================
+echo 🌐 عرب شات - تشغيل على الشبكة المحلية
+echo ============================================
+echo.
+
+REM الحصول على عنوان IP المحلي
+echo 📡 الحصول على عنوان IP المحلي...
+for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /c:"IPv4"') do (
+    set IP=%%a
+    goto :found
+)
+:found
+set IP=%IP:~1%
+
+echo.
+echo ============================================
+echo 📍 معلومات الاتصال:
+echo ============================================
+echo الوصول المحلي:
+echo   - http://localhost:8000
+echo   - http://127.0.0.1:8000
+echo.
+echo الوصول من الأجهزة الأخرى على نفس الشبكة:
+echo   - http://%IP%:8000
+echo.
+echo API Endpoints:
+echo   - http://%IP%:8000/api/
+echo   - http://%IP%:8000/api/users/
+echo   - http://%IP%:8000/api/otp/send_otp/
+echo ============================================
+echo.
+echo ⚠️  ملاحظات مهمة:
+echo   1. تأكد من أن جميع الأجهزة على نفس الشبكة WiFi
+echo   2. تأكد من أن الجدار الناري يسمح بالاتصال عبر المنفذ 8000
+echo   3. اضغط Ctrl+C لإيقاف السيرفر
+echo.
+echo ============================================
+echo 🚀 تشغيل السيرفر...
+echo ============================================
+echo.
+
+python manage.py runserver 0.0.0.0:8000
+

@@ -1,0 +1,885 @@
+{% extends 'base.html' %}
+
+{% block title %}الدردشات - عرب شات{% endblock %}
+
+{% block content %}
+<div class="whatsapp-container chats-list-only">
+    <!-- Chat List Panel -->
+    <div class="chat-list-panel">
+        <!-- Header -->
+        <div class="chat-list-header">
+            <div class="header-left">
+                <div class="avatar">
+                    {% if user.profile.avatar %}
+                        <img src="{{ user.profile.avatar.url }}" alt="{{ user.username }}">
+                    {% else %}
+                        <i class="fas fa-user"></i>
+                    {% endif %}
+                </div>
+                <span style="font-weight: 500; font-size: 18px; color: var(--whatsapp-white);">عرب شات</span>
+            </div>
+            <div class="header-right">
+                <button class="icon-btn" title="الكاميرا">
+                    <i class="fas fa-camera"></i>
+                </button>
+                <button class="icon-btn" title="المحادثات الجديدة">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <a href="{% url 'settings' %}" class="icon-btn" title="الإعدادات">
+                    <i class="fas fa-ellipsis-v"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- Search Bar with Filters -->
+        <div class="search-container">
+            <div class="search-bar-wrapper">
+                <button class="icon-btn search-icon-btn" title="القائمة">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
+                <button class="icon-btn camera-icon-btn" title="الكاميرا">
+                    <i class="fas fa-camera"></i>
+                </button>
+                <div class="search-input-wrapper">
+                    <i class="fas fa-search search-icon-left"></i>
+                    <input type="text" class="search-box" placeholder="اسأل Meta AI أو ابحث" id="searchInput">
+                </div>
+            </div>
+            
+            <!-- Chat Filters -->
+            <div class="chat-filters">
+                <button class="filter-btn active" data-filter="all">الكل</button>
+                <button class="filter-btn" data-filter="unread">غير مقروءة</button>
+                <button class="filter-btn" data-filter="favorites">المفضلة</button>
+                <button class="filter-btn" data-filter="groups">المجموعات</button>
+                <button class="filter-btn add-btn" title="إضافة">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Chat List - قائمة المستخدمين المتواصل معهم -->
+        <div class="chat-list">
+            {% if recent_contacts %}
+                {% for contact_data in recent_contacts %}
+                    {% with contact_user=contact_data.contact_user room=contact_data.room %}
+                    <a href="{% if room %}{% url 'chat_room' room.id %}{% else %}{% url 'start_chat' contact_user.id %}{% endif %}" 
+                       class="chat-item" 
+                       data-user-id="{{ contact_user.id }}" 
+                       data-room-id="{% if room %}{{ room.id }}{% endif %}" 
+                       data-unread="{{ contact_data.unread_count }}">
+                        <div class="avatar" style="position: relative;">
+                            {% if contact_user.profile.avatar %}
+                                <img src="{{ contact_user.profile.avatar.url }}" alt="{{ contact_user.username }}">
+                            {% else %}
+                                <i class="fas fa-user"></i>
+                            {% endif %}
+                            {% if contact_user.profile.is_online %}
+                                <span class="online-indicator"></span>
+                            {% endif %}
+                        </div>
+                        <div class="chat-info">
+                            <div class="chat-header">
+                                <span class="chat-name">
+                                    {{ contact_user.username }}
+                                </span>
+                                <span class="chat-time" data-time="{% if contact_data.last_message %}{{ contact_data.last_message.created_at|date:'c' }}{% else %}{{ contact_data.last_message_time|date:'c' }}{% endif %}">
+                                    {% if contact_data.last_message %}
+                                        {{ contact_data.last_message.created_at|date:"H:i" }}
+                                    {% else %}
+                                        {{ contact_data.last_message_time|date:"H:i" }}
+                                    {% endif %}
+                                </span>
+                            </div>
+                            <div class="chat-preview">
+                                {% if contact_data.last_message %}
+                                    <span class="preview-text">
+                                        {% if contact_data.last_message.sender == user %}
+                                            <i class="fas fa-check-double" style="color: #4FC3F7; font-size: 12px; margin-left: 4px;"></i>
+                                        {% endif %}
+                                        {{ contact_data.last_message.content|truncatewords:20 }}
+                                    </span>
+                                {% else %}
+                                    <span style="font-style: italic; opacity: 0.7;">ابدأ المحادثة</span>
+                                {% endif %}
+                                {% if contact_data.unread_count > 0 %}
+                                    <span class="unread-badge">{{ contact_data.unread_count }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </a>
+                    {% endwith %}
+                {% endfor %}
+            {% else %}
+                <div class="empty-chat">
+                    <i class="fas fa-comments"></i>
+                    <h4 style="margin-top: 20px; color: var(--whatsapp-dark-gray);">لا توجد محادثات</h4>
+                    <p style="margin-top: 10px; color: var(--whatsapp-dark-gray); opacity: 0.7;">ابدأ محادثة جديدة من خلال البحث</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Floating Action Button -->
+    <button class="fab-button" title="دردشة جديدة" onclick="window.location.href='{% url 'search' %}'">
+        <i class="fas fa-edit"></i>
+    </button>
+    
+    <!-- Note: لا تظهر نافذة الدردشة هنا - فقط قائمة المستخدمين -->
+
+    <!-- Note: نافذة الدردشة تظهر في صفحة منفصلة (chat_room.html) -->
+</div>
+
+<script>
+// Mobile Navigation
+document.addEventListener('DOMContentLoaded', function() {
+    const chatItems = document.querySelectorAll('.chat-item');
+    
+    chatItems.forEach(item => {
+        item.addEventListener('click', function(e) {
+            // على الموبايل، إخفاء قائمة المحادثات وإظهار نافذة الدردشة
+            if (window.innerWidth <= 768) {
+                const chatListPanel = document.querySelector('.chat-list-panel');
+                const chatWindowPanel = document.querySelector('.chat-window-panel');
+                
+                if (chatListPanel && chatWindowPanel) {
+                    chatListPanel.style.display = 'none';
+                    chatWindowPanel.classList.add('active');
+                }
+            }
+        });
+    });
+
+    // Search functionality
+    const searchBox = document.getElementById('searchInput');
+    if (searchBox) {
+        searchBox.addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const chatItems = document.querySelectorAll('.chat-item');
+            
+            chatItems.forEach(item => {
+                const chatName = item.querySelector('.chat-name')?.textContent.toLowerCase() || '';
+                const chatPreview = item.querySelector('.preview-text')?.textContent.toLowerCase() || '';
+                
+                if (chatName.includes(searchTerm) || chatPreview.includes(searchTerm)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+    }
+
+    // Filter functionality
+    const filterButtons = document.querySelectorAll('.filter-btn');
+    filterButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            // Remove active class from all buttons
+            filterButtons.forEach(b => b.classList.remove('active'));
+            // Add active class to clicked button
+            this.classList.add('active');
+            
+            const filter = this.getAttribute('data-filter');
+            const chatItems = document.querySelectorAll('.chat-item');
+            
+            chatItems.forEach(item => {
+                if (filter === 'all') {
+                    item.style.display = 'flex';
+                } else if (filter === 'unread') {
+                    const unreadCount = parseInt(item.getAttribute('data-unread') || '0');
+                    item.style.display = unreadCount > 0 ? 'flex' : 'none';
+                } else if (filter === 'favorites') {
+                    // TODO: Implement favorites
+                    item.style.display = 'flex';
+                } else if (filter === 'groups') {
+                    // TODO: Filter groups
+                    item.style.display = 'flex';
+                }
+            });
+        });
+    });
+
+    // Format chat times (اليوم، أمس، التاريخ) - محسّن
+    function formatChatTime(dateString) {
+        if (!dateString) return '';
+        
+        try {
+            const now = new Date();
+            const msgDate = new Date(dateString);
+            
+            // التحقق من صحة التاريخ
+            if (isNaN(msgDate.getTime())) {
+                return '';
+            }
+            
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const msgDay = new Date(msgDate.getFullYear(), msgDate.getMonth(), msgDate.getDate());
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            
+            const diffTime = today - msgDay;
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            
+            if (diffDays === 0) {
+                // اليوم - عرض الوقت فقط
+                return msgDate.toLocaleTimeString('ar-SA', { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    hour12: false 
+                });
+            } else if (diffDays === 1) {
+                // أمس
+                return 'أمس';
+            } else if (diffDays < 7) {
+                // آخر 7 أيام - عرض اليوم
+                const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+                return days[msgDate.getDay()];
+            } else {
+                // أكثر من أسبوع - عرض التاريخ
+                return msgDate.toLocaleDateString('ar-SA', { 
+                    day: '2-digit', 
+                    month: '2-digit' 
+                });
+            }
+        } catch (error) {
+            console.error('Error formatting chat time:', error);
+            return '';
+        }
+    }
+
+    // Update chat times عند تحميل الصفحة
+    document.querySelectorAll('.chat-item').forEach(item => {
+        const timeElement = item.querySelector('.chat-time');
+        if (timeElement) {
+            const timeData = timeElement.getAttribute('data-time');
+            if (timeData) {
+                timeElement.textContent = formatChatTime(timeData);
+            }
+        }
+    });
+
+    // Sort chat items by last message time
+    const chatList = document.querySelector('.chat-list');
+    if (chatList) {
+        const items = Array.from(chatList.querySelectorAll('.chat-item'));
+        items.sort((a, b) => {
+            // Sort by unread count first
+            const unreadA = parseInt(a.getAttribute('data-unread') || '0');
+            const unreadB = parseInt(b.getAttribute('data-unread') || '0');
+            if (unreadA !== unreadB) {
+                return unreadB - unreadA; // More unread first
+            }
+            // Then by time
+            const timeA = a.querySelector('.chat-time')?.textContent || '';
+            const timeB = b.querySelector('.chat-time')?.textContent || '';
+            return timeB.localeCompare(timeA);
+        });
+        items.forEach(item => chatList.appendChild(item));
+    }
+    
+    // ========== نظام الإشعارات الفوري - مثل واتساب ==========
+    const userId = {{ user.id }};
+    const joinUrl = window.buildUrl || ((base, path = '') => {
+        const trimmedBase = (base || '').replace(/\/+$/, '');
+        const trimmedPath = String(path || '').replace(/^\/+/, '');
+        return trimmedPath ? `${trimmedBase}/${trimmedPath}` : trimmedBase;
+    });
+    const buildApiUrl = window.buildApiUrl || ((path = '') => joinUrl(window.API_BASE_URL || '/api', path));
+    const apiFetch = (path, options) => fetch(buildApiUrl(path), options);
+    const buildWsUrl = window.buildWsUrl || ((path = '') => joinUrl(window.WS_BASE_URL || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`, path));
+
+    let notificationsSocket = null;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 10;
+    let unsubscribeNotifications = null;
+
+    async function resolveAuthToken() {
+        if (typeof window.getAuthToken === 'function') {
+            const resolved = await window.getAuthToken();
+            if (resolved) {
+                return resolved;
+            }
+        }
+        try {
+            const token = localStorage.getItem('auth_token');
+            if (token) {
+                return token;
+            }
+        } catch (error) {
+            console.warn('Unable to read auth token from storage:', error);
+        }
+        return null;
+    }
+
+    function handleNotificationPayload(data) {
+        if (!data || !data.type) {
+            return;
+        }
+        if (data.type === 'new_message') {
+            handleNewMessage(data);
+        } else if (data.type === 'chat_list_update') {
+            updateChatListItem(data);
+        } else if (data.type === 'stories_refresh') {
+            window.refreshStoriesBadge?.();
+        } else if (data.type === 'pong') {
+            console.log('Notifications socket heartbeat received');
+        }
+    }
+
+    async function connectNotificationsLegacy() {
+        try {
+            const token = await resolveAuthToken();
+            const wsPath = token
+                ? `ws/notifications/?token=${encodeURIComponent(token)}`
+                : 'ws/notifications/';
+
+            notificationsSocket = new WebSocket(buildWsUrl(wsPath));
+
+            notificationsSocket.onopen = function() {
+                console.log('Notifications WebSocket connected');
+                reconnectAttempts = 0;
+            };
+
+            notificationsSocket.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleNotificationPayload(data);
+                } catch (error) {
+                    console.warn('Received malformed notifications payload', event.data);
+                }
+            };
+
+            notificationsSocket.onerror = function(error) {
+                console.error('Notifications WebSocket error:', error);
+            };
+
+            notificationsSocket.onclose = function() {
+                console.log('Notifications WebSocket closed');
+                if (reconnectAttempts < maxReconnectAttempts) {
+                    reconnectAttempts++;
+                    setTimeout(connectNotificationsLegacy, 3000);
+                }
+            };
+        } catch (error) {
+            console.error('Error connecting to notifications WebSocket:', error);
+            startPollingChatList();
+        }
+    }
+
+    function setupNotifications() {
+        if (window.AppNotifications && typeof window.AppNotifications.addListener === 'function') {
+            unsubscribeNotifications = window.AppNotifications.addListener(handleNotificationPayload);
+            return;
+        }
+        connectNotificationsLegacy();
+    }
+
+    setupNotifications();
+    
+    // معالجة رسالة جديدة
+    function handleNewMessage(data) {
+        const roomId = data.room_id;
+        const senderId = data.sender_id;
+        
+        // تحديث قائمة الدردشات دائماً (حتى لو كانت الرسالة من المستخدم الحالي)
+        updateChatListItem({
+            room_id: roomId,
+            last_message: {
+                content: data.message,
+                sender_id: senderId,
+                sender_username: data.sender_username,
+                created_at: data.timestamp,
+            },
+            unread_count: null // سيتم حسابه من API
+        });
+        
+        // إذا كانت الرسالة من مستخدم آخر
+        if (senderId !== userId) {
+            // إشعار صوتي
+            playNotificationSound();
+            
+            // إشعار المتصفح (فقط إذا لم تكن الصفحة مفعلة)
+            if (!document.hasFocus()) {
+                showBrowserNotification(
+                    `رسالة جديدة من ${data.sender_username}`,
+                    data.message.substring(0, 50) + (data.message.length > 50 ? '...' : ''),
+                    null
+                );
+            }
+            
+            // تحديث عداد الرسائل غير المقروءة
+            updateUnreadCount(roomId);
+        }
+    }
+    
+    // تحديث عنصر في قائمة الدردشات
+    async function updateChatListItem(data) {
+        const roomId = data.room_id;
+        const senderId = data.sender_id || data.last_message?.sender_id;
+        
+        // البحث عن العنصر باستخدام room_id أو user_id
+        let chatItem = document.querySelector(`[data-room-id="${roomId}"]`);
+        if (!chatItem && senderId) {
+            // محاولة البحث باستخدام sender_id
+            chatItem = document.querySelector(`[data-user-id="${senderId}"]`);
+        }
+        
+        if (!chatItem) {
+            // إذا لم يكن العنصر موجوداً، الحصول على بيانات المستخدم وإضافتها
+            await addNewChatItem(roomId, senderId);
+            chatItem = document.querySelector(`[data-room-id="${roomId}"]`) || 
+                      document.querySelector(`[data-user-id="${senderId}"]`);
+            if (!chatItem) return; // إذا فشل إضافة العنصر
+        }
+        
+        // تحديث آخر رسالة
+        if (data.last_message) {
+            const previewText = chatItem.querySelector('.preview-text');
+            if (previewText) {
+                const isFromMe = data.last_message.sender_id === userId;
+                const messageContent = data.last_message.content || '';
+                previewText.innerHTML = `
+                    ${isFromMe ? '<i class="fas fa-check-double" style="color: #4FC3F7; font-size: 12px; margin-left: 4px;"></i>' : ''}
+                    ${escapeHtml(messageContent.substring(0, 50))}${messageContent.length > 50 ? '...' : ''}
+                `;
+            }
+        }
+        
+        // تحديث الوقت مع تنسيق محسّن (اليوم، أمس، إلخ)
+        if (data.last_message && data.last_message.created_at) {
+            const timeElement = chatItem.querySelector('.chat-time');
+            if (timeElement) {
+                timeElement.textContent = formatChatTime(data.last_message.created_at);
+            }
+        } else if (data.updated_at) {
+            const timeElement = chatItem.querySelector('.chat-time');
+            if (timeElement) {
+                timeElement.textContent = formatChatTime(data.updated_at);
+            }
+        }
+        
+        // تحديث عداد الرسائل غير المقروءة
+        if (data.unread_count !== null && data.unread_count !== undefined) {
+            const unreadBadge = chatItem.querySelector('.unread-badge');
+            const currentUnread = parseInt(chatItem.getAttribute('data-unread') || '0');
+            
+            chatItem.setAttribute('data-unread', data.unread_count);
+            
+            if (data.unread_count > 0) {
+                if (!unreadBadge) {
+                    const badge = document.createElement('span');
+                    badge.className = 'unread-badge';
+                    badge.textContent = data.unread_count > 99 ? '99+' : data.unread_count;
+                    const preview = chatItem.querySelector('.chat-preview');
+                    if (preview) {
+                        preview.appendChild(badge);
+                    }
+                } else {
+                    unreadBadge.textContent = data.unread_count > 99 ? '99+' : data.unread_count;
+                }
+            } else {
+                if (unreadBadge) {
+                    unreadBadge.remove();
+                }
+            }
+        }
+        
+        // إعادة ترتيب القائمة (نقل العنصر إلى الأعلى) مع تأثير بسيط
+        moveChatItemToTop(chatItem);
+    }
+    
+    // دالة مساعدة لتهريب HTML
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // نقل عنصر إلى أعلى القائمة مع تأثير بسيط
+    function moveChatItemToTop(chatItem) {
+        const chatList = document.querySelector('.chat-list');
+        if (chatList && chatItem && chatItem !== chatList.firstChild) {
+            // إضافة تأثير fade بسيط
+            chatItem.style.opacity = '0.7';
+            chatItem.style.transition = 'opacity 0.2s, transform 0.2s';
+            
+            // نقل العنصر إلى الأعلى
+            chatList.insertBefore(chatItem, chatList.firstChild);
+            
+            // إضافة class للأنيميشن
+            chatItem.classList.add('new-chat');
+            
+            // إعادة الظهور
+            setTimeout(() => {
+                chatItem.style.opacity = '1';
+                chatItem.classList.remove('new-chat');
+            }, 300);
+        }
+    }
+    
+    // إضافة عنصر دردشة جديد
+    async function addNewChatItem(roomId, userId) {
+        try {
+        const token = await resolveAuthToken();
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            if (token) {
+                headers['Authorization'] = `Token ${token}`;
+            }
+            
+            // محاولة الحصول على بيانات المستخدم من API
+            if (userId) {
+                const userResponse = await apiFetch(`users/${userId}/`, {
+                    method: 'GET',
+                    headers: headers,
+                    credentials: 'include'
+                });
+                
+                if (userResponse.ok) {
+                    const userData = await userResponse.json();
+                    // إضافة العنصر إلى القائمة
+                    const chatList = document.querySelector('.chat-list');
+                    if (chatList) {
+                        const chatItem = createUserChatItemElement(userData, roomId);
+                        chatList.insertBefore(chatItem, chatList.firstChild);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error adding new chat item:', error);
+        }
+    }
+    
+    // إنشاء عنصر دردشة من بيانات المستخدم
+    function createUserChatItemElement(userData, roomId) {
+        const chatItem = document.createElement('a');
+        chatItem.href = roomId ? `/chats/${roomId}/` : `/start-chat/${userData.id}/`;
+        chatItem.className = 'chat-item';
+        chatItem.setAttribute('data-user-id', userData.id);
+        if (roomId) {
+            chatItem.setAttribute('data-room-id', roomId);
+        }
+        
+        const avatarHTML = userData.profile?.avatar 
+            ? `<img src="${userData.profile.avatar}" alt="${userData.username}">`
+            : `<i class="fas fa-user"></i>`;
+        
+        const onlineIndicator = userData.profile?.is_online ? '<span class="online-indicator"></span>' : '';
+        
+        chatItem.innerHTML = `
+            <div class="avatar" style="position: relative;">
+                ${avatarHTML}
+                ${onlineIndicator}
+            </div>
+            <div class="chat-info">
+                <div class="chat-header">
+                    <span class="chat-name">${escapeHtml(userData.username)}</span>
+                    <span class="chat-time"></span>
+                </div>
+                <div class="chat-preview">
+                    <span class="preview-text" style="font-style: italic; opacity: 0.7;">ابدأ المحادثة</span>
+                </div>
+            </div>
+        `;
+        
+        return chatItem;
+    }
+    
+    // إنشاء عنصر دردشة من البيانات
+    function createChatItemElement(room) {
+        const chatItem = document.createElement('a');
+        chatItem.href = `/chats/${room.room_id}/`;
+        chatItem.className = 'chat-item';
+        chatItem.setAttribute('data-room-id', room.room_id);
+        chatItem.setAttribute('data-unread', room.unread_count || '0');
+        
+        const avatarHTML = room.other_member_avatar 
+            ? `<img src="${room.other_member_avatar}" alt="${room.other_member_username}">`
+            : `<i class="fas fa-user"></i>`;
+        
+        const onlineIndicator = room.is_online ? '<span class="online-indicator"></span>' : '';
+        const lastMessageContent = room.last_message?.content || 'لا توجد رسائل';
+        const lastMessageTime = room.last_message?.created_at 
+            ? new Date(room.last_message.created_at).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
+            : '';
+        const unreadBadge = room.unread_count > 0 
+            ? `<span class="unread-badge">${room.unread_count}</span>` 
+            : '';
+        
+        chatItem.innerHTML = `
+            <div class="avatar" style="position: relative;">
+                ${avatarHTML}
+                ${onlineIndicator}
+            </div>
+            <div class="chat-info">
+                <div class="chat-header">
+                    <span class="chat-name">${escapeHtml(room.other_member_username)}</span>
+                    <span class="chat-time" data-time="${room.last_message?.created_at || room.updated_at}">${lastMessageTime}</span>
+                </div>
+                <div class="chat-preview">
+                    <span class="preview-text">${escapeHtml(lastMessageContent.substring(0, 50))}${lastMessageContent.length > 50 ? '...' : ''}</span>
+                    ${unreadBadge}
+                </div>
+            </div>
+        `;
+        
+        // إضافة event listener للانتقال
+        chatItem.addEventListener('click', function(e) {
+            // على الموبايل، إخفاء قائمة المحادثات وإظهار نافذة الدردشة
+            if (window.innerWidth <= 768) {
+                const chatListPanel = document.querySelector('.chat-list-panel');
+                const chatWindowPanel = document.querySelector('.chat-window-panel');
+                
+                if (chatListPanel && chatWindowPanel) {
+                    chatListPanel.style.display = 'none';
+                    chatWindowPanel.classList.add('active');
+                }
+            }
+        });
+        
+        return chatItem;
+    }
+    
+    // تحديث عداد الرسائل غير المقروءة
+    async function updateUnreadCount(roomId) {
+        try {
+            const token = await resolveAuthToken();
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            if (token) {
+                headers['Authorization'] = `Token ${token}`;
+            }
+            
+            const response = await apiFetch(`messages/unread_count/?room=${roomId}`, {
+                method: 'GET',
+                headers: headers
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                const chatItem = document.querySelector(`[data-room-id="${roomId}"]`);
+                if (chatItem) {
+                    chatItem.setAttribute('data-unread', data.unread_count || '0');
+                }
+            }
+        } catch (error) {
+            console.error('Error updating unread count:', error);
+        }
+    }
+    
+    // Polling كبديل عند فشل WebSocket
+    let pollingInterval = null;
+    let lastUpdateTime = new Date().toISOString();
+    
+    function startPollingChatList() {
+        if (pollingInterval) return;
+        
+        pollingInterval = setInterval(async () => {
+            try {
+                const token = await resolveAuthToken();
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                if (token) {
+                    headers['Authorization'] = `Token ${token}`;
+                }
+                
+                const response = await apiFetch(`chat-rooms/chat_list_updates/?since=${lastUpdateTime}`, {
+                    method: 'GET',
+                    headers: headers
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    lastUpdateTime = data.timestamp;
+                    
+                    // تحديث القائمة
+                    if (data.rooms && data.rooms.length > 0) {
+                        data.rooms.forEach(room => {
+                            updateChatListItem({
+                                room_id: room.room_id,
+                                last_message: room.last_message,
+                                unread_count: room.unread_count,
+                                updated_at: room.updated_at
+                            });
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Error polling chat list:', error);
+            }
+        }, 3000); // كل 3 ثوانٍ
+    }
+    
+    // تشغيل صوت الإشعار
+    function playNotificationSound() {
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 523.25;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.3);
+        } catch (error) {
+            console.log('Cannot play notification sound:', error);
+        }
+    }
+    
+    // إشعار المتصفح
+    function showBrowserNotification(title, body, icon) {
+        if (!('Notification' in window)) return;
+        if (Notification.permission !== 'granted') return;
+        if (document.hasFocus()) return; // لا تظهر إذا كانت الصفحة مفتوحة
+        
+        try {
+            const notification = new Notification(title, {
+                body: body,
+                icon: icon || '/static/favicon.ico',
+                badge: '/static/favicon.ico',
+                tag: 'chat-message',
+                requireInteraction: false
+            });
+            
+            setTimeout(() => notification.close(), 5000);
+            notification.onclick = function() {
+                window.focus();
+                notification.close();
+            };
+        } catch (error) {
+            console.log('Error showing browser notification:', error);
+        }
+    }
+    
+    // طلب إذن الإشعارات
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+    
+    // بدء الاتصال بالإشعارات
+    setupNotifications();
+
+    window.addEventListener('beforeunload', function() {
+        if (typeof unsubscribeNotifications === 'function') {
+            unsubscribeNotifications();
+        }
+        if (notificationsSocket && notificationsSocket.readyState === WebSocket.OPEN) {
+            notificationsSocket.close();
+        }
+    });
+    
+    // تحديث القائمة عند العودة إلى الصفحة (من صفحة المحادثة)
+    window.addEventListener('focus', function() {
+        refreshChatList();
+    });
+    
+    // تحديث القائمة عند تحميل الصفحة
+    refreshChatList();
+    
+    // التحقق من آخر محادثة تم زيارتها وتحديثها
+    const lastVisitedRoom = sessionStorage.getItem('last_visited_room');
+    const lastVisitTime = sessionStorage.getItem('last_visit_time');
+    if (lastVisitedRoom && lastVisitTime) {
+        // تحديث المحادثة الأخيرة بعد العودة
+        setTimeout(() => {
+            updateChatListItem({
+                room_id: parseInt(lastVisitedRoom),
+                unread_count: null // سيتم تحديثه من API
+            });
+            // حذف المعلومات من sessionStorage
+            sessionStorage.removeItem('last_visited_room');
+            sessionStorage.removeItem('last_visit_time');
+        }, 500);
+    }
+    
+    // تحديث دوري للقائمة (كل 30 ثانية) كنسخة احتياطية
+    setInterval(refreshChatList, 30000);
+    
+    // دالة تحديث قائمة المستخدمين المتواصل معهم
+    async function refreshRecentContacts() {
+        try {
+        const token = await resolveAuthToken();
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            if (token) {
+                headers['Authorization'] = `Token ${token}`;
+            }
+            
+            const response = await apiFetch('recent-contacts/my_contacts/', {
+                method: 'GET',
+                headers: headers,
+                credentials: 'include'
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                // تحديث القائمة بناءً على البيانات الجديدة
+                // يمكن إضافة منطق التحديث هنا
+            }
+        } catch (error) {
+            console.error('Error refreshing recent contacts:', error);
+        }
+    }
+    
+    // دالة تحديث قائمة الدردشات (للتوافق مع الكود القديم)
+    async function refreshChatList() {
+        // استخدام refreshRecentContacts بدلاً من ذلك
+        await refreshRecentContacts();
+    }
+    
+    // إيقاف الاتصال عند مغادرة الصفحة
+    window.addEventListener('beforeunload', function() {
+        if (notificationsSocket) {
+            notificationsSocket.close();
+        }
+        if (pollingInterval) {
+            clearInterval(pollingInterval);
+        }
+    });
+
+    if (typeof window.loadCallClient === 'function') {
+        const initCallButton = (button) => {
+            button.addEventListener('click', async (event) => {
+                event.preventDefault();
+                const roomId = button.dataset.roomId || button.closest('[data-room-id]')?.dataset.roomId;
+                if (!roomId) {
+                    console.warn('Call button missing room id');
+                    return;
+                }
+                try {
+                    const callType = button.dataset.callType || 'audio';
+                    const participants = button.dataset.callTarget
+                        ? String(button.dataset.callTarget)
+                            .split(',')
+                            .map((value) => parseInt(value.trim(), 10))
+                            .filter((value) => !Number.isNaN(value))
+                        : [];
+                    const clientFactory = await window.loadCallClient();
+                    await clientFactory.startCall({
+                        roomId: parseInt(roomId, 10),
+                        callType,
+                        participants,
+                    });
+                } catch (error) {
+                    console.error('Failed to initiate call', error);
+                    alert('تعذر بدء المكالمة. يرجى المحاولة مرة أخرى.');
+                }
+            });
+        };
+
+        document.querySelectorAll('[data-call-type]').forEach(initCallButton);
+    }
+});
+</script>
+{% endblock %}

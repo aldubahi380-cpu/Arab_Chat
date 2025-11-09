@@ -1,0 +1,1157 @@
+import logging
+from pathlib import Path
+
+from rest_framework import viewsets, status, serializers
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.authtoken.models import Token
+from django.contrib.auth.models import User
+from django.contrib.auth import logout
+from django.db import transaction
+from django.db.models import Q, Count, Max
+from django.utils import timezone
+from django.conf import settings
+from django.http import FileResponse
+from .models import (
+    UserProfile, ChatRoom, Message, MessageRead, SessionDevice,
+    CallSession, CallParticipant
+)
+from .serializers import (
+    UserSerializer, UserProfileSerializer, ChatRoomSerializer,
+    MessageSerializer, MessageReadSerializer,
+    CallSessionSerializer
+)
+from .media_utils import (
+    compress_image,
+    compress_video,
+    ImageCompressionConfig,
+    VideoCompressionConfig,
+    IMAGE_CONFIG,
+    VIDEO_CONFIG,
+)
+from .tasks import send_message_notification_task
+from .tasks import send_call_invite_task
+
+logger = logging.getLogger(__name__)
+
+class UserViewSet(viewsets.ModelViewSet):
+    """ViewSet للمستخدمين"""
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated]
+    
+    @action(detail=False, methods=['get'], permission_classes=[AllowAny])
+    def me(self, request):
+        """الحصول على معلومات المستخدم الحالي"""
+        # التحقق من token إذا كان موجود
+        if request.user.is_authenticated:
+            serializer = self.get_serializer(request.user)
+            return Response(serializer.data)
+        else:
+            # محاولة التحقق من token في header
+            auth_header = request.headers.get('Authorization', '')
+            if auth_header.startswith('Token '):
+                token = auth_header.split(' ')[1]
+                try:
+                    token_obj = Token.objects.get(key=token)
+                    serializer = self.get_serializer(token_obj.user)
+                    return Response(serializer.data)
+                except Token.DoesNotExist:
+                    return Response({'error': 'Token غير صالح'}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({'error': 'يجب تسجيل الدخول'}, status=status.HTTP_401_UNAUTHORIZED)
+    
+    @action(detail=False, methods=['get'])
+    def auth_token(self, request):
+        """الحصول على أو إنشاء auth token للمستخدم الحالي"""
+        token, created = Token.objects.get_or_create(user=request.user)
+        return Response({
+            'token': token.key,
+            'created': created
+        })
+
+    @action(detail=False, methods=['post'])
+    def logout(self, request):
+        """تسجيل خروج الجهاز الحالي مع تعطيل session token"""
+        session_token = request.data.get('session_token') or request.COOKIES.get('session_token')
+        device_id = request.data.get('device_id') or request.COOKIES.get('session_device_id')
+
+        if session_token and device_id:
+            SessionDevice.objects.filter(
+                user=request.user,
+                session_token=session_token,
+                device_id=device_id
+            ).update(is_active=False, expires_at=timezone.now())
+
+        logout(request)
+
+        response = Response({'success': True})
+        response.delete_cookie('session_token')
+        response.delete_cookie('session_device_id')
+        response.delete_cookie('auth_token')
+        return response
+
+    @action(detail=False, methods=['delete'])
+    def delete_account(self, request):
+        """حذف حساب المستخدم بالكامل من السيرفر وقاعدة البيانات"""
+        user = request.user
+
+        if not user.is_authenticated:
+            return Response(
+                {'success': False, 'error': 'يجب تسجيل الدخول'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        username = user.username
+        import logging
+        logger = logging.getLogger(__name__)
+
+        try:
+            with transaction.atomic():
+                # حذف الرسائل وسجلات القراءة
+                Message.objects.filter(sender=user).delete()
+                MessageRead.objects.filter(user=user).delete()
+
+                # تنظيف الغرف المرتبطة بالمستخدم
+                from .models import ChatRoom
+                rooms_created = ChatRoom.objects.filter(created_by=user)
+                for room in rooms_created:
+                    if room.is_private and room.members.count() == 2:
+                        room.delete()
+                    else:
+                        room.members.remove(user)
+                        if room.members.count() == 0:
+                            room.delete()
+
+                rooms_member = ChatRoom.objects.filter(members=user).exclude(created_by=user)
+                for room in rooms_member:
+                    room.members.remove(user)
+                    if room.is_private and room.members.count() <= 1:
+                        room.delete()
+
+                # حذف العلاقات الاجتماعية وسجلات القبول
+                from .models import (
+                    FriendRequest, Friend, BlockedUser,
+                    Story, StoryView, Contact, RecentContact,
+                    DeviceToken, OTPVerification
+                )
+
+                FriendRequest.objects.filter(from_user=user).delete()
+                FriendRequest.objects.filter(to_user=user).delete()
+                Friend.objects.filter(user=user).delete()
+                Friend.objects.filter(friend=user).delete()
+                BlockedUser.objects.filter(user=user).delete()
+                BlockedUser.objects.filter(blocked_user=user).delete()
+
+                Story.objects.filter(user=user).delete()
+                StoryView.objects.filter(user=user).delete()
+
+                Contact.objects.filter(user=user).delete()
+                Contact.objects.filter(registered_user=user).update(registered_user=None, is_registered=False)
+
+                RecentContact.objects.filter(user=user).delete()
+                RecentContact.objects.filter(contact_user=user).delete()
+
+                DeviceToken.objects.filter(user=user).delete()
+                SessionDevice.objects.filter(user=user).delete()
+
+                # حذف سجلات OTP المرتبطة برقم المستخدم إن وجدت
+                try:
+                    profile = user.profile
+                except UserProfile.DoesNotExist:  # type: ignore[attr-defined]
+                    profile = None
+                if profile and profile.phone:
+                    OTPVerification.objects.filter(phone=profile.phone).delete()
+
+                # إزالة رموز المصادقة وتسجيل الخروج
+                Token.objects.filter(user=user).delete()
+                logout(request)
+
+                # حذف المستخدم (سيحذف UserProfile تلقائياً بفضل CASCADE)
+                user.delete()
+
+            return Response({
+                'message': f'تم حذف الحساب "{username}" بنجاح من السيرفر وقاعدة البيانات',
+                'success': True
+            }, status=status.HTTP_200_OK)
+        except Exception as exc:
+            logger.error('Error deleting account for %s: %s', username, exc)
+            return Response({
+                'error': f'حدث خطأ أثناء حذف الحساب: {exc}',
+                'success': False
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['get'])
+    def search(self, request):
+        """البحث عن المستخدمين"""
+        query = request.query_params.get('q', '')
+        if query:
+            users = User.objects.filter(
+                Q(username__icontains=query) |
+                Q(first_name__icontains=query) |
+                Q(last_name__icontains=query) |
+                Q(email__icontains=query)
+            )[:20]
+            serializer = self.get_serializer(users, many=True)
+            return Response(serializer.data)
+        return Response([])
+    
+    @action(detail=False, methods=['delete'])
+    def delete_account(self, request):
+        """حذف حساب المستخدم بالكامل من السيرفر وقاعدة البيانات"""
+        user = request.user
+        
+        try:
+            # حذف جميع البيانات المرتبطة بالمستخدم
+            
+            # 1. حذف جميع الرسائل المرسلة
+            Message.objects.filter(sender=user).delete()
+            
+            # 2. حذف جميع سجلات قراءة الرسائل
+            MessageRead.objects.filter(user=user).delete()
+            
+            # 3. حذف جميع الغرف التي أنشأها المستخدم (إذا لم يكن فيها أعضاء آخرون)
+            # أو إزالة المستخدم من الغرف المشتركة
+            from .models import ChatRoom
+            rooms_created = ChatRoom.objects.filter(created_by=user)
+            for room in rooms_created:
+                # إذا كانت الغرفة خاصة وعدد الأعضاء 2، حذفها
+                if room.is_private and room.members.count() == 2:
+                    room.delete()
+                else:
+                    # إزالة المستخدم من الغرفة
+                    room.members.remove(user)
+                    # إذا لم يكن هناك أعضاء، حذف الغرفة
+                    if room.members.count() == 0:
+                        room.delete()
+            
+            # إزالة المستخدم من جميع الغرف الأخرى
+            rooms_member = ChatRoom.objects.filter(members=user).exclude(created_by=user)
+            for room in rooms_member:
+                room.members.remove(user)
+                # إذا كانت الغرفة خاصة وعدد الأعضاء أصبح 1، حذفها
+                if room.is_private and room.members.count() <= 1:
+                    room.delete()
+            
+            # 4. حذف جميع طلبات الصداقة
+            from .models import FriendRequest
+            FriendRequest.objects.filter(from_user=user).delete()
+            FriendRequest.objects.filter(to_user=user).delete()
+            
+            # 5. حذف جميع علاقات الصداقة
+            from .models import Friend
+            Friend.objects.filter(user=user).delete()
+            Friend.objects.filter(friend=user).delete()
+            
+            # 6. حذف جميع الحظورات
+            from .models import BlockedUser
+            BlockedUser.objects.filter(user=user).delete()
+            BlockedUser.objects.filter(blocked_user=user).delete()
+            
+            # 7. حذف جميع الاستوريات
+            from .models import Story, StoryView
+            Story.objects.filter(user=user).delete()
+            StoryView.objects.filter(user=user).delete()
+            
+            # 8. حذف جميع جهات الاتصال
+            from .models import Contact
+            Contact.objects.filter(user=user).delete()
+            
+            # 9. حذف جميع المستخدمين المتواصل معهم
+            from .models import RecentContact
+            RecentContact.objects.filter(user=user).delete()
+            RecentContact.objects.filter(contact_user=user).delete()
+            
+            # 10. حذف جميع Device Tokens
+            from .models import DeviceToken
+            DeviceToken.objects.filter(user=user).delete()
+            SessionDevice.objects.filter(user=user).delete()
+            
+            # 11. حذف Token المصادقة
+            from rest_framework.authtoken.models import Token
+            try:
+                Token.objects.filter(user=user).delete()
+            except:
+                pass
+            
+            # 12. حفظ اسم المستخدم قبل الحذف (للتسجيل)
+            username = user.username
+            
+            # 13. حذف المستخدم (سيؤدي إلى حذف UserProfile تلقائياً بسبب CASCADE)
+            user.delete()
+            
+            return Response({
+                'message': f'تم حذف الحساب "{username}" بنجاح من السيرفر وقاعدة البيانات',
+                'success': True
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f'Error deleting user account: {e}')
+            return Response({
+                'error': f'حدث خطأ أثناء حذف الحساب: {str(e)}',
+                'success': False
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class UserProfileViewSet(viewsets.ModelViewSet):
+    """ViewSet لملفات المستخدمين"""
+    queryset = UserProfile.objects.all()
+    serializer_class = UserProfileSerializer
+    permission_classes = [IsAuthenticated]
+    
+    @action(detail=False, methods=['get', 'put'])
+    def me(self, request):
+        """الحصول على أو تحديث ملف المستخدم الحالي"""
+        profile, created = UserProfile.objects.get_or_create(user=request.user)
+        if request.method == 'PUT':
+            serializer = self.get_serializer(profile, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            avatar_file = request.FILES.get('avatar')
+            save_kwargs = {}
+            if avatar_file:
+                try:
+                    save_kwargs['avatar'] = self._compress_avatar(avatar_file)
+                except Exception as exc:
+                    raise serializers.ValidationError({'avatar': f'تعذر ضغط الصورة: {exc}'})
+            serializer.save(**save_kwargs)
+            return Response(serializer.data)
+        serializer = self.get_serializer(profile)
+        return Response(serializer.data)
+
+    def perform_update(self, serializer):
+        avatar_file = self.request.FILES.get('avatar')
+        save_kwargs = {}
+        if avatar_file:
+            try:
+                save_kwargs['avatar'] = self._compress_avatar(avatar_file)
+            except Exception as exc:
+                raise serializers.ValidationError({'avatar': f'تعذر ضغط الصورة: {exc}'})
+        serializer.save(**save_kwargs)
+
+    def perform_create(self, serializer):
+        avatar_file = self.request.FILES.get('avatar')
+        save_kwargs = {'user': self.request.user}
+        if avatar_file:
+            try:
+                save_kwargs['avatar'] = self._compress_avatar(avatar_file)
+            except Exception as exc:
+                raise serializers.ValidationError({'avatar': f'تعذر ضغط الصورة: {exc}'})
+        serializer.save(**save_kwargs)
+
+    @staticmethod
+    def _compress_avatar(avatar_file):
+        avatar_config = ImageCompressionConfig(
+            max_edge=min(IMAGE_CONFIG.max_edge, 1080),
+            quality=min(IMAGE_CONFIG.quality + 2, 92),
+            min_quality=max(IMAGE_CONFIG.min_quality, 78),
+            target_max_kb=min(IMAGE_CONFIG.target_max_kb, 450),
+            target_min_kb=IMAGE_CONFIG.target_min_kb,
+            allow_webp=IMAGE_CONFIG.allow_webp,
+        )
+        compressed_avatar, _ = compress_image(avatar_file, config=avatar_config)
+        return compressed_avatar
+    
+    @action(detail=True, methods=['post'])
+    def set_online(self, request, pk=None):
+        """تحديد حالة الاتصال"""
+        profile = self.get_object()
+        profile.is_online = True
+        profile.last_seen = timezone.now()
+        profile.save()
+        return Response({'status': 'online'})
+    
+    @action(detail=True, methods=['post'])
+    def set_offline(self, request, pk=None):
+        """تحديد حالة عدم الاتصال"""
+        profile = self.get_object()
+        profile.is_online = False
+        profile.last_seen = timezone.now()
+        profile.save()
+        return Response({'status': 'offline'})
+
+
+class ChatRoomViewSet(viewsets.ModelViewSet):
+    """ViewSet لغرف الدردشة"""
+    queryset = ChatRoom.objects.all()
+    serializer_class = ChatRoomSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """الحصول على غرف المستخدم والمجموعات العامة"""
+        user = self.request.user
+        
+        # غرف المستخدم (خاصة وعامة)
+        user_rooms = ChatRoom.objects.filter(members=user).distinct()
+        
+        # المجموعات العامة (للعرض فقط)
+        public_groups = ChatRoom.objects.filter(is_private=False).distinct()
+        
+        # دمج النتائج
+        return (user_rooms | public_groups).distinct()
+    
+    def perform_create(self, serializer):
+        """إنشاء غرفة جديدة"""
+        room = serializer.save(created_by=self.request.user)
+        room.members.add(self.request.user)
+    
+    @action(detail=True, methods=['post'])
+    def add_member(self, request, pk=None):
+        """إضافة عضو إلى الغرفة"""
+        room = self.get_object()
+        user_id = request.data.get('user_id')
+        if user_id:
+            try:
+                user = User.objects.get(id=user_id)
+                room.members.add(user)
+                return Response({'status': 'member added'})
+            except User.DoesNotExist:
+                return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'error': 'user_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['post'])
+    def remove_member(self, request, pk=None):
+        """إزالة عضو من الغرفة"""
+        room = self.get_object()
+        user_id = request.data.get('user_id')
+        if user_id:
+            try:
+                user = User.objects.get(id=user_id)
+                room.members.remove(user)
+                return Response({'status': 'member removed'})
+            except User.DoesNotExist:
+                return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'error': 'user_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=False, methods=['get'])
+    def my_rooms(self, request):
+        """الحصول على غرف المستخدم"""
+        rooms = self.get_queryset()
+        serializer = self.get_serializer(rooms, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def chat_list_updates(self, request):
+        """الحصول على تحديثات قائمة الدردشات - للاستدعاء الفوري"""
+        from django.db.models import Max
+        user = request.user
+        
+        # الحصول على جميع الغرف الخاصة مع آخر رسالة
+        private_rooms = ChatRoom.objects.filter(
+            members=user,
+            is_private=True
+        ).annotate(
+            member_count=Count('members'),
+            last_message_time=Max('messages__created_at')
+        ).filter(
+            member_count=2
+        ).prefetch_related('members')
+        
+        rooms_data = []
+        for room in private_rooms:
+            other_member = room.members.exclude(id=user.id).first()
+            if not other_member:
+                continue
+            
+            last_message = Message.objects.filter(room=room).order_by('-created_at').first()
+            unread_count = Message.objects.filter(
+                room=room
+            ).exclude(
+                read_by__user=user
+            ).count()
+            
+            rooms_data.append({
+                'room_id': room.id,
+                'other_member_id': other_member.id,
+                'other_member_username': other_member.username,
+                'other_member_avatar': other_member.profile.avatar.url if hasattr(other_member, 'profile') and other_member.profile.avatar else None,
+                'is_online': other_member.profile.is_online if hasattr(other_member, 'profile') else False,
+                'last_message': {
+                    'id': last_message.id if last_message else None,
+                    'content': last_message.content[:100] if last_message else None,
+                    'sender_id': last_message.sender.id if last_message else None,
+                    'sender_username': last_message.sender.username if last_message else None,
+                    'created_at': last_message.created_at.isoformat() if last_message else None,
+                },
+                'unread_count': unread_count,
+                'updated_at': room.updated_at.isoformat(),
+                'sort_time': last_message.created_at.isoformat() if last_message else room.updated_at.isoformat()
+            })
+        
+        # ترتيب حسب آخر رسالة
+        rooms_data.sort(key=lambda x: x['sort_time'], reverse=True)
+        
+        return Response({
+            'rooms': rooms_data,
+            'timestamp': timezone.now().isoformat()
+        })
+    
+    @action(detail=False, methods=['get'])
+    def public_groups(self, request):
+        """الحصول على جميع المجموعات العامة"""
+        groups = ChatRoom.objects.filter(is_private=False).annotate(
+            member_count=Count('members')
+        ).order_by('-created_at')
+        serializer = self.get_serializer(groups, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def join(self, request, pk=None):
+        """الانضمام إلى مجموعة عامة"""
+        room = self.get_object()
+        
+        if room.is_private:
+            return Response({'error': 'لا يمكن الانضمام إلى محادثة خاصة'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if request.user in room.members.all():
+            return Response({'status': 'already_member', 'message': 'أنت عضو بالفعل في هذه المجموعة'})
+        
+        room.members.add(request.user)
+        serializer = self.get_serializer(room)
+        return Response({'status': 'joined', 'room': serializer.data})
+    
+    @action(detail=True, methods=['post'])
+    def leave(self, request, pk=None):
+        """مغادرة مجموعة"""
+        room = self.get_object()
+        
+        if room.is_private:
+            return Response({'error': 'لا يمكن مغادرة محادثة خاصة'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if request.user not in room.members.all():
+            return Response({'error': 'أنت لست عضواً في هذه المجموعة'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # لا يمكن للمنشئ مغادرة المجموعة إلا إذا كان آخر عضو
+        if room.created_by == request.user and room.members.count() == 1:
+            room.delete()
+            return Response({'status': 'deleted', 'message': 'تم حذف المجموعة'})
+        elif room.created_by == request.user:
+            return Response({'error': 'لا يمكن للمنشئ مغادرة المجموعة. يجب تعيين منشئ جديد أولاً'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        room.members.remove(request.user)
+        return Response({'status': 'left', 'message': 'تم مغادرة المجموعة'})
+
+
+class MessageViewSet(viewsets.ModelViewSet):
+    """ViewSet للرسائل"""
+    queryset = Message.objects.all()
+    serializer_class = MessageSerializer
+    permission_classes = [IsAuthenticated]
+    MIN_AUDIO_BYTES = 2048
+
+    def get_queryset(self):
+        """الحصول على رسائل المستخدم فقط (استثناء المحذوفة)"""
+        user = self.request.user
+        # الحصول على الغرف التي المستخدم عضو فيها
+        user_rooms = ChatRoom.objects.filter(members=user)
+        queryset = Message.objects.filter(
+            room__in=user_rooms,
+            is_deleted=False  # استثناء الرسائل المحذوفة
+        ).select_related('sender', 'room')
+        
+        # تصفية حسب الغرفة إذا كانت موجودة
+        room_id = self.request.query_params.get('room')
+        if room_id:
+            # التحقق من أن المستخدم عضو في الغرفة
+            try:
+                room = ChatRoom.objects.get(id=room_id, members=user)
+                queryset = queryset.filter(room=room)
+            except ChatRoom.DoesNotExist:
+                return Message.objects.none()
+        
+        return queryset.order_by('-created_at')
+    
+    def destroy(self, request, *args, **kwargs):
+        """حذف رسالة (فقط المرسل يمكنه الحذف) - حذف ناعم"""
+        message = self.get_object()
+        
+        # التحقق من أن المستخدم هو المرسل
+        if message.sender != request.user:
+            return Response(
+                {'error': '❌ يمكنك حذف رسائلك فقط', 'success': False},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # حذف ناعم (Soft Delete) - إخفاء الرسالة بدلاً من حذفها
+        from django.utils import timezone
+        message.is_deleted = True
+        message.deleted_at = timezone.now()
+        message.content = '[تم حذف هذه الرسالة]'
+        message.save()
+        
+        # حذف الملف من السيرفر إذا كان موجوداً
+        if message.file:
+            try:
+                message.file.delete(save=False)
+                message.file = None
+                message.save()
+            except:
+                pass
+        
+        return Response({
+            'message': '✅ تم حذف الرسالة بنجاح',
+            'message_id': message.id,
+            'success': True
+        })
+    
+    @action(detail=True, methods=['delete'])
+    def delete_message(self, request, pk=None):
+        """حذف رسالة (endpoint بديل)"""
+        return self.destroy(request, pk=pk)
+    
+    @action(detail=False, methods=['get'])
+    def search(self, request):
+        """البحث في المحادثات"""
+        query = request.query_params.get('q', '').strip()
+        room_id = request.query_params.get('room')
+        
+        if not query:
+            return Response({
+                'error': 'يجب إدخال نص للبحث',
+                'success': False
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not room_id:
+            return Response({
+                'error': 'يجب تحديد رقم الغرفة',
+                'success': False
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            room = ChatRoom.objects.get(id=room_id, members=request.user)
+        except ChatRoom.DoesNotExist:
+            return Response({
+                'error': 'الغرفة غير موجودة أو ليس لديك صلاحية للوصول إليها',
+                'success': False
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # البحث في محتوى الرسائل
+        messages = Message.objects.filter(
+            room=room,
+            content__icontains=query
+        ).select_related('sender').order_by('-created_at')[:50]
+        
+        serializer = self.get_serializer(messages, many=True)
+        
+        return Response({
+            'messages': serializer.data,
+            'count': len(serializer.data),
+            'query': query,
+            'success': True
+        })
+    
+    @action(detail=False, methods=['get'])
+    def poll_new(self, request):
+        """Polling للحصول على الرسائل الجديدة"""
+        room_id = request.query_params.get('room_id')
+        last_message_id = request.query_params.get('last_message_id', 0)
+        
+        try:
+            last_message_id = int(last_message_id)
+        except (ValueError, TypeError):
+            last_message_id = 0
+        
+        if not room_id:
+            return Response({'error': 'room_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            room = ChatRoom.objects.get(id=room_id, members=request.user)
+        except ChatRoom.DoesNotExist:
+            return Response({'error': 'Room not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # الحصول على الرسائل الجديدة بعد last_message_id
+        new_messages = Message.objects.filter(
+            room=room,
+            id__gt=last_message_id
+        ).select_related('sender').order_by('created_at')
+        
+        serializer = self.get_serializer(new_messages, many=True)
+        return Response({
+            'messages': serializer.data,
+            'count': new_messages.count()
+        })
+    
+    @action(detail=False, methods=['get'])
+    def unread_count(self, request):
+        """الحصول على عدد الرسائل غير المقروءة في غرفة"""
+        room_id = request.query_params.get('room')
+        
+        if not room_id:
+            return Response({
+                'error': 'room parameter is required',
+                'success': False
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            room = ChatRoom.objects.get(id=room_id, members=request.user)
+        except ChatRoom.DoesNotExist:
+            return Response({
+                'error': 'Room not found',
+                'success': False
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        unread_count = Message.objects.filter(
+            room=room
+        ).exclude(
+            read_by__user=request.user
+        ).count()
+        
+        # الحصول على آخر رسالة غير مقروءة
+        last_unread = Message.objects.filter(
+            room=room
+        ).exclude(
+            read_by__user=request.user
+        ).order_by('-created_at').first()
+        
+        return Response({
+            'room_id': room_id,
+            'unread_count': unread_count,
+            'last_unread_message_id': last_unread.id if last_unread else None,
+            'last_unread_time': last_unread.created_at.isoformat() if last_unread else None,
+            'success': True
+        })
+    
+    @action(detail=False, methods=['get'])
+    def read_status(self, request):
+        """الحصول على حالة قراءة الرسائل في غرفة"""
+        room_id = request.query_params.get('room')
+        
+        if not room_id:
+            return Response({
+                'error': 'room parameter is required',
+                'success': False
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            room = ChatRoom.objects.get(id=room_id, members=request.user)
+        except ChatRoom.DoesNotExist:
+            return Response({
+                'error': 'Room not found',
+                'success': False
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # الحصول على آخر 50 رسالة مع حالة القراءة
+        messages = Message.objects.filter(
+            room=room
+        ).select_related('sender').prefetch_related('read_by').order_by('-created_at')[:50]
+        
+        messages_data = []
+        for msg in messages:
+            is_read_by_me = msg.read_by.filter(user=request.user).exists()
+            read_by_count = msg.read_by.count()
+            total_members = room.members.count()
+            
+            messages_data.append({
+                'id': msg.id,
+                'content': msg.content[:100],
+                'sender_id': msg.sender.id,
+                'sender_username': msg.sender.username,
+                'message_type': msg.message_type,
+                'is_read_by_me': is_read_by_me,
+                'read_by_count': read_by_count,
+                'total_members': total_members,
+                'is_read_by_all': read_by_count >= total_members,
+                'created_at': msg.created_at.isoformat()
+            })
+        
+        return Response({
+            'room_id': room_id,
+            'messages': messages_data,
+            'success': True
+        })
+    
+    def perform_create(self, serializer):
+        """إنشاء رسالة جديدة مع دعم الملفات"""
+        room = serializer.validated_data.get('room')
+        message_type = serializer.validated_data.get('message_type', 'text')
+        file = serializer.validated_data.get('file')
+        
+        # التحقق من نوع الرسالة والملف
+        if message_type in ['image', 'file', 'audio', 'video'] and not file:
+            raise serializers.ValidationError({
+                'file': f'يجب إرفاق ملف للرسائل من نوع {message_type}'
+            })
+        
+        # تحديد نوع الرسالة تلقائياً بناءً على الملف
+        if file and message_type == 'text':
+            if hasattr(file, 'content_type'):
+                content_type = file.content_type
+                if content_type and content_type.startswith('image/'):
+                    serializer.validated_data['message_type'] = 'image'
+                elif content_type and content_type.startswith('video/'):
+                    serializer.validated_data['message_type'] = 'video'
+                elif content_type and content_type.startswith('audio/'):
+                    serializer.validated_data['message_type'] = 'audio'
+                else:
+                    serializer.validated_data['message_type'] = 'file'
+        
+        # التحقق من أن الغرفة موجودة والمستخدم عضو فيها
+        if isinstance(room, ChatRoom):
+            # إذا كانت room كائن ChatRoom، التحقق من العضوية
+            if self.request.user not in room.members.all():
+                raise serializers.ValidationError({'room': 'لست عضواً في هذه الغرفة'})
+            final_room = room
+        else:
+            # إذا كان room هو ID (int)، محاولة العثور على الغرفة
+            try:
+                final_room = ChatRoom.objects.get(id=room, members=self.request.user)
+                serializer.validated_data['room'] = final_room
+            except ChatRoom.DoesNotExist:
+                # إذا لم توجد الغرفة، ربما يكون room_id هو ID مستخدم
+                # إنشاء غرفة خاصة مع هذا المستخدم
+                try:
+                    target_user = User.objects.get(id=room)
+                    if target_user == self.request.user:
+                        raise serializers.ValidationError({'room': 'لا يمكنك إرسال رسالة لنفسك'})
+                    final_room = self.get_or_create_private_room(self.request.user, target_user)
+                    serializer.validated_data['room'] = final_room
+                except User.DoesNotExist:
+                    raise serializers.ValidationError({'room': 'الغرفة أو المستخدم غير موجود'})
+        
+        compressed_upload = None
+        if file:
+            try:
+                if serializer.validated_data.get('message_type') == 'image':
+                    compressed_upload, _ = compress_image(file)
+                elif serializer.validated_data.get('message_type') == 'video':
+                    compressed_upload, _ = compress_video(file)
+            except RuntimeError as exc:
+                raise serializers.ValidationError({'file': f'تعذر ضغط الفيديو: {exc}'})
+            except Exception as exc:
+                raise serializers.ValidationError({'file': f'خطأ في معالجة الملف: {exc}'})
+
+        save_kwargs = {'sender': self.request.user}
+        if compressed_upload:
+            save_kwargs['file'] = compressed_upload
+
+        with transaction.atomic():
+            message = serializer.save(**save_kwargs)
+
+            if message.message_type == 'audio' and message.file:
+                if message.file.size is None or message.file.size < self.MIN_AUDIO_BYTES:
+                    message.delete()
+                    raise serializers.ValidationError({'file': 'الملف الصوتي قصير جداً أو لم يتم تسجيله بشكل صحيح. يرجى إعادة المحاولة.'})
+
+            if file and serializer.validated_data.get('message_type') in ('image', 'video'):
+                try:
+                    file.seek(0)
+                    message.original_file.save(getattr(file, 'name', f'original_{message.id}'), file, save=True)
+                except Exception as exc:
+                    logger.warning('Failed to store original media for message %s: %s', message.id, exc)
+
+        # تحديث updated_at للغرفة لتحديث ترتيب القائمة
+        from django.utils import timezone
+        from .models import RecentContact
+        
+        final_room.updated_at = timezone.now()
+        final_room.save(update_fields=['updated_at'])
+        
+        # إنشاء سجل قراءة للمرسل
+        MessageRead.objects.get_or_create(message=message, user=self.request.user)
+        
+        # تحديث RecentContact للمستخدمين في المحادثة الخاصة
+        if final_room.is_private and final_room.members.count() == 2:
+            other_members = final_room.members.exclude(id=self.request.user.id)
+            for other_user in other_members:
+                # تحديث RecentContact للمرسل
+                recent_contact, created = RecentContact.objects.get_or_create(
+                    user=self.request.user,
+                    contact_user=other_user
+                )
+                recent_contact.last_message_time = timezone.now()
+                recent_contact.message_count += 1
+                recent_contact.save(update_fields=['last_message_time', 'message_count'])
+                
+                # تحديث RecentContact للمستقبل أيضاً
+                RecentContact.objects.update_or_create(
+                    user=other_user,
+                    contact_user=self.request.user,
+                    defaults={
+                        'last_message_time': timezone.now(),
+                    }
+                )
+        
+        # إرسال إشعار للمستخدمين الآخرين في الغرفة (تحديث قائمة الدردشات)
+        self.send_notification_to_other_users(final_room, message)
+    
+    def get_serializer_context(self):
+        """إضافة request إلى context للـ serializer"""
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+
+    def get_or_create_private_room(self, user1, user2):
+        """إنشاء أو العثور على غرفة محادثة خاصة بين مستخدمين"""
+        from .models import RecentContact
+        
+        # البحث عن غرفة خاصة موجودة بين المستخدمين
+        existing_rooms = ChatRoom.objects.filter(
+            is_private=True,
+            members=user1
+        ).filter(members=user2).annotate(
+            member_count=Count('members')
+        ).filter(member_count=2)
+        
+        if existing_rooms.exists():
+            return existing_rooms.first()
+        
+        # إنشاء غرفة جديدة
+        room = ChatRoom.objects.create(
+            name=f"{user1.username} - {user2.username}",
+            is_private=True,
+            created_by=user1
+        )
+        room.members.add(user1, user2)
+        
+        # إضافة إلى RecentContact
+        RecentContact.objects.get_or_create(
+            user=user1,
+            contact_user=user2
+        )
+        RecentContact.objects.get_or_create(
+            user=user2,
+            contact_user=user1
+        )
+        
+        return room
+    
+    def send_notification_to_other_users(self, room, message):
+        """إرسال إشعار للمستخدمين الآخرين عند استقبال رسالة جديدة"""
+        try:
+            from channels.layers import get_channel_layer
+            from asgiref.sync import async_to_sync
+            from django.utils import timezone
+            
+            channel_layer = get_channel_layer()
+            if not channel_layer:
+                return
+            
+            # الحصول على جميع الأعضاء الآخرين في الغرفة
+            other_members = room.members.exclude(id=message.sender.id)
+            
+            for member in other_members:
+                # إرسال إشعار WebSocket لكل مستخدم
+                user_group_name = f'user_{member.id}_notifications'
+                async_to_sync(channel_layer.group_send)(
+                    user_group_name,
+                    {
+                        'type': 'new_message_notification',
+                        'room_id': room.id,
+                        'message': message.content[:100],
+                        'sender_id': message.sender.id,
+                        'sender_username': message.sender.username,
+                        'timestamp': message.created_at.isoformat(),
+                        'message_id': message.id,
+                    }
+                )
+                
+                # إرسال تحديث قائمة الدردشات
+                unread_count = Message.objects.filter(
+                    room=room
+                ).exclude(
+                    read_by__user=member
+                ).count()
+                
+                async_to_sync(channel_layer.group_send)(
+                    user_group_name,
+                    {
+                        'type': 'chat_list_update',
+                        'room_id': room.id,
+                        'last_message': {
+                            'id': message.id,
+                            'content': message.content[:100],
+                            'sender_id': message.sender.id,
+                            'sender_username': message.sender.username,
+                            'created_at': message.created_at.isoformat(),
+                        },
+                        'unread_count': unread_count,
+                        'updated_at': room.updated_at.isoformat(),
+                    }
+                )
+                
+                # إرسال إشعار Push
+                send_message_notification_task.delay(message.id, member.id)
+        except Exception as e:
+            # في حالة فشل إرسال الإشعار، لا نوقف العملية
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f'Error sending notification: {e}')
+
+    @action(detail=True, methods=['get'])
+    def download_original(self, request, pk=None):
+        """تحميل النسخة الأصلية للملف إن وجدت"""
+        message = self.get_object()
+        if not message.original_file:
+            return Response({'error': 'لا توجد نسخة أصلية متاحة'}, status=status.HTTP_404_NOT_FOUND)
+
+        filename = Path(message.original_file.name).name
+        return FileResponse(message.original_file.open('rb'), as_attachment=True, filename=filename)
+    
+    @action(detail=False, methods=['post'])
+    def mark_read(self, request, pk=None):
+        """تحديد الرسالة كمقروءة"""
+        message = self.get_object()
+        MessageRead.objects.get_or_create(message=message, user=request.user)
+        message.is_read = True
+        message.save()
+        return Response({'status': 'marked as read'})
+    
+    @action(detail=False, methods=['get'])
+    def unread_count(self, request):
+        """عدد الرسائل غير المقروءة"""
+        user = request.user
+        rooms = ChatRoom.objects.filter(members=user)
+        unread = Message.objects.filter(
+            room__in=rooms
+        ).exclude(
+            read_by__user=user
+        ).count()
+        return Response({'unread_count': unread})
+
+
+class MessageReadViewSet(viewsets.ModelViewSet):
+    """ViewSet لتتبع قراءة الرسائل"""
+    queryset = MessageRead.objects.all()
+    serializer_class = MessageReadSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """الحصول على الرسائل المقروءة للمستخدم الحالي"""
+        return MessageRead.objects.filter(user=self.request.user)
+
+
+class CallSessionViewSet(viewsets.ModelViewSet):
+    """إدارة جلسات المكالمات (صوت/فيديو)"""
+
+    serializer_class = CallSessionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        return CallSession.objects.filter(
+            Q(initiator=user) | Q(participants__user=user)
+        ).select_related('room', 'initiator').prefetch_related('participants__user').distinct()
+
+    def perform_create(self, serializer):
+        call_session = serializer.save()
+        participants_ids = self.request.data.get('participants', [])
+        if isinstance(participants_ids, str):
+            participants_ids = [participants_ids]
+
+        participants_ids = set(int(uid) for uid in participants_ids if str(uid).isdigit())
+        participants_ids.discard(self.request.user.id)
+
+        if participants_ids:
+            users = User.objects.filter(id__in=participants_ids, is_active=True)
+            participants = []
+            for participant_user in users:
+                participant, _ = CallParticipant.objects.get_or_create(
+                    session=call_session,
+                    user=participant_user,
+                    defaults={
+                        'role': CallParticipant.Role.RECEIVER,
+                        'is_connected': False,
+                    }
+                )
+                participants.append(participant)
+                send_call_invite_task.delay(call_session.id, participant_user.id)
+
+        call_session.activate()
+
+    @action(detail=True, methods=['post'])
+    def invite(self, request, pk=None):
+        call_session = self.get_object()
+        if call_session.status not in (CallSession.Status.ACTIVE, CallSession.Status.PENDING):
+            return Response({'error': 'لا يمكن دعوة مستخدمين بعد انتهاء المكالمة.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        participants_ids = request.data.get('participants', [])
+        if isinstance(participants_ids, str):
+            participants_ids = [participants_ids]
+
+        if not participants_ids:
+            return Response({'error': 'يرجى تحديد قائمة المشاركين'}, status=status.HTTP_400_BAD_REQUEST)
+
+        participants_ids = set(int(uid) for uid in participants_ids if str(uid).isdigit())
+        participants_ids.discard(request.user.id)
+        if not participants_ids:
+            return Response({'error': 'لا يوجد مشاركون صالحون'}, status=status.HTTP_400_BAD_REQUEST)
+
+        invited = []
+        for participant_user in User.objects.filter(id__in=participants_ids, is_active=True):
+            participant, created = CallParticipant.objects.get_or_create(
+                session=call_session,
+                user=participant_user,
+                defaults={'role': CallParticipant.Role.RECEIVER}
+            )
+            if created or not participant.is_connected:
+                send_call_invite_task.delay(call_session.id, participant_user.id)
+            invited.append(participant_user.id)
+
+        serializer = self.get_serializer(call_session)
+        return Response({'invited': invited, 'call': serializer.data})
+
+    @action(detail=True, methods=['post'])
+    def join(self, request, pk=None):
+        call_session = self.get_object()
+        if call_session.status not in (CallSession.Status.ACTIVE, CallSession.Status.PENDING):
+            return Response({'error': 'لا يمكن الانضمام بسبب انتهاء المكالمة.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        call_session.activate()
+
+        participant, _ = CallParticipant.objects.get_or_create(
+            session=call_session,
+            user=request.user,
+            defaults={'role': CallParticipant.Role.RECEIVER}
+        )
+        peer_id = request.data.get('peer_id')
+        participant.mark_connected(peer_id=peer_id)
+
+        serializer = self.get_serializer(call_session)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def leave(self, request, pk=None):
+        call_session = self.get_object()
+        try:
+            participant = call_session.participants.get(user=request.user)
+        except CallParticipant.DoesNotExist:
+            return Response({'error': 'أنت لست مشاركاً في هذه المكالمة.'}, status=status.HTTP_404_NOT_FOUND)
+
+        participant.mark_disconnected()
+
+        if not call_session.participants.filter(is_connected=True).exists():
+            call_session.end(reason=CallSession.EndReason.NO_PARTICIPANTS)
+
+        return Response({'success': True})
+
+    @action(detail=True, methods=['post'])
+    def end(self, request, pk=None):
+        call_session = self.get_object()
+        if call_session.status in (CallSession.Status.ENDED, CallSession.Status.CANCELLED):
+            return Response({'success': True})
+
+        reason = request.data.get('reason') or CallSession.EndReason.NORMAL
+        if reason not in CallSession.EndReason.values:
+            reason = CallSession.EndReason.NORMAL
+
+        call_session.end(reason=reason)
+        return Response({'success': True})
+
+    @action(detail=True, methods=['get'])
+    def status(self, request, pk=None):
+        call_session = self.get_object()
+        serializer = self.get_serializer(call_session)
+        return Response(serializer.data)
+
+
+def index_view(request):
+    """الصفحة الرئيسية"""
+    # إذا كان المستخدم مسجل دخول، توجيهه للـ dashboard
+    if request.user.is_authenticated:
+        from django.shortcuts import redirect
+        return redirect('dashboard')
+    
+    # إذا لم يكن مسجل دخول، توجيهه لصفحة الشروط
+    from django.shortcuts import redirect
+    return redirect('terms')
