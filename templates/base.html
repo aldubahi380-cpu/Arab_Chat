@@ -654,6 +654,11 @@
             }
         }
 
+        body:has(.chat-room-page) {
+            --chat-header-height: 68px;
+            --chat-input-height: calc(92px + env(safe-area-inset-bottom));
+        }
+
         /* Chat Window Panel */
         .chat-window-panel {
             background: var(--whatsapp-white);
@@ -700,13 +705,26 @@
             }
             
             body:has(.chat-room-page) .messages-container {
-                padding: 20px 16px calc(96px + env(safe-area-inset-bottom));
+                position: absolute;
+                top: var(--chat-header-height);
+                bottom: var(--chat-input-height);
+                left: 0;
+                right: 0;
+                padding: 20px 16px;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
             }
             
             body:has(.chat-room-page) .message-input-container {
-                padding-bottom: max(10px, env(safe-area-inset-bottom));
+                position: absolute;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                padding: 12px 16px calc(12px + env(safe-area-inset-bottom)) 16px;
                 border-top: 1px solid var(--whatsapp-gray);
                 box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
+                background: var(--whatsapp-white);
+                min-height: var(--chat-input-height);
             }
         }
 
@@ -720,6 +738,16 @@
             justify-content: space-between;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             z-index: 10;
+        }
+
+        body:has(.chat-room-page) .chat-window-header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--chat-header-height);
+            display: flex;
+            align-items: center;
         }
 
         .chat-window-header .header-left {
