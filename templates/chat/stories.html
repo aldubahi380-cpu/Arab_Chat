@@ -634,6 +634,57 @@
         color: #ff6f61;
     }
 
+    #mediaStoryModal .modal-content,
+    #textStoryModal .modal-content {
+        display: flex;
+        flex-direction: column;
+        max-height: 90vh;
+    }
+
+    #mediaStoryModal .modal-body,
+    #textStoryModal .modal-body {
+        flex: 1;
+        overflow-y: auto;
+        padding-bottom: 110px;
+    }
+
+    .story-publish-bar {
+        position: sticky;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        background: var(--whatsapp-white);
+        padding: 16px;
+        border-radius: var(--radius-md);
+        box-shadow: 0 -6px 20px rgba(0,0,0,0.08);
+        margin-top: 20px;
+    }
+
+    .story-publish-bar .btn-success {
+        flex: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        font-weight: 600;
+        padding-inline: 20px;
+    }
+
+    @media (max-width: 576px) {
+        .story-publish-bar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .story-publish-bar .btn-success,
+        .story-publish-bar .btn-outline-secondary {
+            width: 100%;
+        }
+    }
+
     @media (max-width: 992px) {
         .stories-page {
             padding: 20px 12px 70px;
@@ -869,13 +920,13 @@
                     <label class="form-label fw-semibold">أضف تعليقاً (اختياري)</label>
                     <textarea class="form-control" id="mediaStoryCaption" rows="3" maxlength="280" placeholder="اكتب تعليقاً قصيراً يصف الاستوري..."></textarea>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">إلغاء</button>
-                <button type="submit" class="btn btn-success" id="publishMediaStoryButton">
-                    <span class="spinner-border spinner-border-sm me-2 d-none" id="mediaStorySpinner" role="status" aria-hidden="true"></span>
-                    نشر الاستوري
-                </button>
+                <div class="story-publish-bar">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-success" id="publishMediaStoryButton">
+                        <span class="spinner-border spinner-border-sm d-none" id="mediaStorySpinner" role="status" aria-hidden="true"></span>
+                        نشر الاستوري
+                    </button>
+                </div>
             </div>
         </form>
     </div>
@@ -912,13 +963,13 @@
                     <label class="form-label fw-semibold">تعليق إضافي (اختياري)</label>
                     <input type="text" class="form-control" id="textStoryCaption" maxlength="140" placeholder="سيظهر أسفل الاستوري بعد مشاركته">
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">إلغاء</button>
-                <button type="submit" class="btn btn-success" id="publishTextStoryButton">
-                    <span class="spinner-border spinner-border-sm me-2 d-none" id="textStorySpinner" role="status" aria-hidden="true"></span>
-                    نشر الاستوري النصي
-                </button>
+                <div class="story-publish-bar">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-success" id="publishTextStoryButton">
+                        <span class="spinner-border spinner-border-sm d-none" id="textStorySpinner" role="status" aria-hidden="true"></span>
+                        نشر الاستوري النصي
+                    </button>
+                </div>
             </div>
         </form>
     </div>
