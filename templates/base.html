@@ -1655,7 +1655,7 @@
             <i class="fas fa-search"></i>
             <span>البحث</span>
         </a>
-        <button type="button" class="nav-menu-item install-app-button" id="installAppButton" hidden data-pwa-install-trigger>
+        <button type="button" class="nav-menu-item install-app-button visible" id="installAppButton" data-pwa-install-trigger>
             <i class="fas fa-download"></i>
             <span>تثبيت التطبيق</span>
         </button>
@@ -2239,12 +2239,6 @@
             if (isStandalone()) {
                 concealTriggers();
                 closeGuide();
-                return;
-            }
-
-            if (!secureContext) {
-                concealTriggers();
-                openGuide();
                 return;
             }
 
