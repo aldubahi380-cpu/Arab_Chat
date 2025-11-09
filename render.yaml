@@ -14,6 +14,26 @@ services:
         value: arab_chat.settings_production
       - key: PYTHON_VERSION
         value: 3.13.0
+      - key: DJANGO_SECRET_KEY
+        sync: false
+      - key: DJANGO_ALLOWED_HOSTS
+        sync: false
+      - key: BASE_URL
+        sync: false
+      - key: API_BASE_URL
+        sync: false
+      - key: WS_BASE_URL
+        sync: false
+      - key: SESSION_COOKIE_AGE
+        value: "7776000"
+      - key: FIREBASE_CONFIG
+        sync: false
+      - key: FCM_SERVER_KEY
+        sync: false
+      - key: FCM_WEB_PUSH_PUBLIC_KEY
+        sync: false
+      - key: FCM_WEB_PUSH_SENDER_ID
+        sync: false
       - key: REDIS_URL
         fromService:
           name: arab-chat-redis
