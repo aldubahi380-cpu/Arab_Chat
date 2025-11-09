@@ -1019,6 +1019,7 @@
             pendingMediaType: null,
             notificationsUnsubscribe: null,
             fileDialogFallbackTimer: null,
+            fileDialogAwaitingSelection: false,
         };
 
         const joinUrl = window.buildUrl || ((base, path = '') => {
@@ -1170,6 +1171,7 @@
                 clearTimeout(state.fileDialogFallbackTimer);
                 state.fileDialogFallbackTimer = null;
             }
+            state.fileDialogAwaitingSelection = false;
         }
 
         function resetMediaSelection() {
@@ -1206,6 +1208,7 @@
             }
 
             clearFileDialogFallbackTimer();
+            state.fileDialogAwaitingSelection = true;
             if (capture) {
                 elements.fileInput.setAttribute('capture', capture);
             } else {
@@ -1216,16 +1219,25 @@
             try {
                 elements.fileInput.click();
                 if (fallbackToModal) {
-                    state.fileDialogFallbackTimer = window.setTimeout(() => {
-                        if (!state.pendingMediaFile) {
-                            modals.add.show();
-                        }
-                        state.fileDialogFallbackTimer = null;
-                    }, 500);
+                    const handleFocus = () => {
+                        window.removeEventListener('focus', handleFocus, true);
+                        state.fileDialogFallbackTimer = window.setTimeout(() => {
+                            if (state.fileDialogAwaitingSelection && !state.pendingMediaFile) {
+                                state.fileDialogAwaitingSelection = false;
+                                modals.add.show();
+                            }
+                            clearFileDialogFallbackTimer();
+                        }, 200);
+                    };
+                    window.addEventListener('focus', handleFocus, true);
+                    window.addEventListener('blur', () => {
+                        state.fileDialogAwaitingSelection = true;
+                    }, { once: true });
                 }
                 return true;
             } catch (error) {
                 console.warn('Unable to trigger file input:', error);
+                state.fileDialogAwaitingSelection = false;
                 if (fallbackToModal) {
                     modals.add.show();
                 }
@@ -1256,6 +1268,7 @@
 
             modals.media.show();
             clearFileDialogFallbackTimer();
+            state.fileDialogAwaitingSelection = false;
             return true;
         }
 
