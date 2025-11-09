@@ -5,39 +5,47 @@ Django settings for arab_chat project - Production Configuration
 """
 from .settings import *  # noqa: F401,F403
 import os
-from dotenv import load_dotenv
-from pathlib import Path
+import dj_database_url
 
-load_dotenv()
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-# الحصول على ALLOWED_HOSTS من متغير البيئة
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
-if not ALLOWED_HOSTS or ALLOWED_HOSTS == ['']:
-    ALLOWED_HOSTS = ['yourdomain.com', 'www.yourdomain.com']  # غير هذا إلى نطاقك
+# الحصول على ALLOWED_HOSTS من متغير البيئة (متوافق مع المتغيرات المستخدمة في settings الأساسي)
+ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS') or os.environ.get('ALLOWED_HOSTS', '')
+ALLOWED_HOSTS = [host.strip() for host in ALLOWED_HOSTS.split(',') if host.strip()]
+if not ALLOWED_HOSTS:
+    ALLOWED_HOSTS = ['yourdomain.com', 'www.yourdomain.com']
 
-# استخدام SECRET_KEY من متغير البيئة
-SECRET_KEY = os.environ.get('SECRET_KEY')
+# استخدام SECRET_KEY من نفس المتغير المعتمد في الإعدادات العامة
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY') or os.environ.get('SECRET_KEY')
 if not SECRET_KEY:
     raise ValueError("يجب تعيين SECRET_KEY في متغيرات البيئة للإنتاج!")
 
-# قاعدة البيانات للإنتاج - MySQL
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.environ.get('DB_NAME', 'arab_chat_db'),
-        'USER': os.environ.get('DB_USER', 'root'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
-        'PORT': os.environ.get('DB_PORT', '3306'),
-        'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-            'charset': 'utf8mb4',
-        },
+# تكوين قاعدة البيانات من DATABASE_URL (Postgres في Render)، مع دعم fallback اختياري
+DATABASE_URL = os.environ.get('DATABASE_URL')
+if DATABASE_URL:
+    DATABASES['default'] = dj_database_url.parse(
+        DATABASE_URL,
+        conn_max_age=600,
+        ssl_require=True,
+    )
+else:
+    # Fallback لاستخدام MySQL في حال لم يتم توفير DATABASE_URL
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': os.environ.get('DB_NAME', 'arab_chat_db'),
+            'USER': os.environ.get('DB_USER', 'root'),
+            'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+            'HOST': os.environ.get('DB_HOST', 'localhost'),
+            'PORT': os.environ.get('DB_PORT', '3306'),
+            'OPTIONS': {
+                'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+                'charset': 'utf8mb4',
+            },
+        }
     }
-}
 
 # CORS settings للإنتاج - حدد النطاقات المسموحة فقط
 CORS_ALLOW_ALL_ORIGINS = False
