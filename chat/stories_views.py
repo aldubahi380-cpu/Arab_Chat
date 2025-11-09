@@ -79,6 +79,16 @@ class StoryViewSet(viewsets.ModelViewSet):
 
         self._broadcast_story_update(story)
 
+        # إرسال إشعارات Push للأصدقاء عبر Celery
+        try:
+            from .tasks import send_story_notification_task
+
+            watcher_ids = Friend.objects.filter(friend=story.user).values_list('user_id', flat=True)
+            for user_id in watcher_ids:
+                send_story_notification_task.delay(story.id, user_id)
+        except Exception as exc:
+            logger.warning('Failed to enqueue story notifications: %s', exc)
+
     @action(detail=False, methods=['get'])
     def feed(self, request):
         """إرجاع الاستوريات مجمعة لواجهة واتساب"""

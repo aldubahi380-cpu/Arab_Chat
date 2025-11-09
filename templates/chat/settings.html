@@ -88,6 +88,18 @@
                                     إشعارات طلبات الصداقة
                                 </label>
                             </div>
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="notificationSound" checked>
+                                <label class="form-check-label" for="notificationSound">
+                                    تشغيل نغمة التنبيه
+                                </label>
+                            </div>
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="notificationVibration" checked>
+                                <label class="form-check-label" for="notificationVibration">
+                                    الاهتزاز عند استقبال الإشعارات
+                                </label>
+                            </div>
                         </div>
                     </div>
                     
@@ -165,6 +177,14 @@ async function logoutDevice(button) {
             throw new Error('فشل تسجيل الخروج من السيرفر');
         }
 
+        if (window.ArabChatNotifications && typeof window.ArabChatNotifications.unregister === 'function') {
+            try {
+                await window.ArabChatNotifications.unregister();
+            } catch (notifyError) {
+                console.warn('Failed to unregister push token on logout', notifyError);
+            }
+        }
+
         clearStoredAuthToken();
         localStorage.clear();
         sessionStorage.clear();
@@ -216,6 +236,13 @@ async function deleteAccount(button) {
         const data = await response.json().catch(() => ({}));
 
         if (response.ok && data.success) {
+            if (window.ArabChatNotifications && typeof window.ArabChatNotifications.unregister === 'function') {
+                try {
+                    await window.ArabChatNotifications.unregister();
+                } catch (notifyError) {
+                    console.warn('Failed to unregister push token on account deletion', notifyError);
+                }
+            }
             clearStoredAuthToken();
             localStorage.clear();
             sessionStorage.clear();
@@ -240,9 +267,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     let notificationSettings = {
-        sound: true,
+        enabled: true,
         browser: true,
-        enabled: true
+        sound: true,
+        vibrate: true,
     };
 
     try {
@@ -256,26 +284,81 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const messageNotifications = document.getElementById('messageNotifications');
     const friendRequestNotifications = document.getElementById('friendRequestNotifications');
+    const soundToggle = document.getElementById('notificationSound');
+    const vibrationToggle = document.getElementById('notificationVibration');
+
+    function persistNotificationSettings() {
+        try {
+            localStorage.setItem('notificationSettings', JSON.stringify(notificationSettings));
+        } catch (e) {
+            console.error('Error saving notification settings:', e);
+        }
+
+        const prefsPayload = {
+            enabled: !!notificationSettings.enabled,
+            sound: !!(notificationSettings.enabled && notificationSettings.sound),
+            vibrate: !!(notificationSettings.enabled && notificationSettings.vibrate),
+        };
+
+        if (window.ArabChatNotifications && typeof window.ArabChatNotifications.updatePreferences === 'function') {
+            window.ArabChatNotifications.updatePreferences(prefsPayload);
+        } else if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+            navigator.serviceWorker.ready.then((registration) => {
+                if (registration && registration.active) {
+                    registration.active.postMessage({
+                    type: 'SET_NOTIFICATION_PREFS',
+                    payload: prefsPayload,
+                    });
+                }
+            });
+        }
+    }
+
+    function updateToggleStates() {
+        if (soundToggle) {
+            soundToggle.disabled = !notificationSettings.enabled;
+        }
+        if (vibrationToggle) {
+            vibrationToggle.disabled = !notificationSettings.enabled;
+        }
+    }
 
     if (messageNotifications) {
-        messageNotifications.checked = notificationSettings.enabled && notificationSettings.sound;
+        messageNotifications.checked = !!notificationSettings.enabled;
         messageNotifications.addEventListener('change', function() {
-            notificationSettings.sound = this.checked;
             notificationSettings.enabled = this.checked;
-            saveNotificationSettings();
+            persistNotificationSettings();
+            updateToggleStates();
         });
     }
 
     if (friendRequestNotifications) {
-        friendRequestNotifications.checked = notificationSettings.browser;
+        friendRequestNotifications.checked = !!notificationSettings.browser;
         friendRequestNotifications.addEventListener('change', function() {
             notificationSettings.browser = this.checked;
             if (this.checked && 'Notification' in window && Notification.permission === 'default') {
                 Notification.requestPermission();
             }
-            saveNotificationSettings();
+            persistNotificationSettings();
         });
     }
+
+    if (soundToggle) {
+        soundToggle.checked = !!notificationSettings.sound;
+        soundToggle.addEventListener('change', function() {
+            notificationSettings.sound = this.checked;
+            persistNotificationSettings();
+        });
+    }
+
+    if (vibrationToggle) {
+        vibrationToggle.checked = !!notificationSettings.vibrate;
+        vibrationToggle.addEventListener('change', function() {
+            notificationSettings.vibrate = this.checked;
+            persistNotificationSettings();
+        });
+    }
+    updateToggleStates();
 
     if ('Notification' in window && Notification.permission === 'default') {
         const notificationTab = document.querySelector('#notifications');
@@ -297,14 +380,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function saveNotificationSettings() {
-        try {
-            localStorage.setItem('notificationSettings', JSON.stringify(notificationSettings));
-        } catch (e) {
-            console.error('Error saving notification settings:', e);
-        }
-    }
-
     if ('Notification' in window) {
         const permissionStatus = document.createElement('small');
         permissionStatus.className = 'text-muted d-block mt-2';
@@ -322,6 +397,8 @@ document.addEventListener('DOMContentLoaded', function() {
             notificationTab.appendChild(permissionStatus);
         }
     }
+
+    persistNotificationSettings();
 });
 </script>
 {% endblock %}

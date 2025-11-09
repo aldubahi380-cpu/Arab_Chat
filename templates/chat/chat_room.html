@@ -1377,6 +1377,7 @@ function updateMessageStatus(messageId, status) {
 // إعدادات الإشعارات
 let notificationSettings = {
     sound: true,
+    vibrate: true,
     browser: true,
     enabled: true
 };
@@ -1391,8 +1392,18 @@ try {
     console.log('Error loading notification settings:', e);
 }
 
+window.addEventListener('storage', function(event) {
+    if (event.key === 'notificationSettings' && event.newValue) {
+        try {
+            notificationSettings = { ...notificationSettings, ...JSON.parse(event.newValue) };
+        } catch (error) {
+            console.warn('Failed to update notification settings from storage event', error);
+        }
+    }
+});
+
 // طلب إذن الإشعارات من المتصفح
-if ('Notification' in window && Notification.permission === 'default') {
+if (notificationSettings.browser && 'Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission().then(permission => {
         console.log('Notification permission:', permission);
     });
@@ -1430,6 +1441,9 @@ function playNotificationSound() {
         } catch (e) {
             // لا يوجد صوت متاح
         }
+    }
+    if (notificationSettings.vibrate && navigator.vibrate) {
+        navigator.vibrate([200, 100, 200]);
     }
 }
 

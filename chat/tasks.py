@@ -64,6 +64,35 @@ def send_call_invite_task(self, call_session_id: int, recipient_id: int) -> None
     push_notification_service.send_call_invitation(call_session, recipient)
 
 
+@shared_task(bind=True, ignore_result=True, max_retries=3, default_retry_delay=60)
+def send_story_notification_task(self, story_id: int, recipient_id: int) -> None:
+    """
+    إرسال إشعار عند نشر استوري جديد.
+    """
+    from .models import Story  # استيراد متأخر لتجنب الدوران
+    from .push_notifications_service import push_notification_service
+
+    try:
+        story = Story.objects.select_related('user').get(id=story_id)
+    except Story.DoesNotExist:
+        return
+
+    if not story.is_active:
+        return
+
+    User = get_user_model()
+    try:
+        recipient = User.objects.get(id=recipient_id, is_active=True)
+    except User.DoesNotExist:
+        return
+
+    # لا داعي لإرسال إشعار للمالك نفسه عبر هذا المسار
+    if recipient.id == story.user_id:
+        return
+
+    push_notification_service.send_story_notification(story, recipient)
+
+
 @shared_task(bind=True, ignore_result=True, max_retries=2, default_retry_delay=60)
 def cleanup_stale_call_sessions(self) -> None:
     """
