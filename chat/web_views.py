@@ -6,12 +6,13 @@ from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.http import JsonResponse, HttpResponse
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_GET
 from django.utils import timezone
 from rest_framework.authtoken.models import Token
 from .models import ChatRoom, Message, Friend, FriendRequest, Story, Contact, UserProfile, OTPVerification, SessionDevice
 from django.db.models import Q, Count, Max
 from django.conf import settings
+from django.contrib.staticfiles.storage import staticfiles_storage
 
 
 def is_ajax(request):
@@ -494,4 +495,21 @@ def otp_test_view(request):
     }
     
     return render_spa(request, 'chat/otp_test.html', context)
+
+
+@require_GET
+def service_worker(request):
+    """تقديم ملف Service Worker من الجذر لضمان نطاق التطبيق الكامل."""
+    try:
+        with staticfiles_storage.open('sw.js') as fh:
+            content = fh.read()
+    except Exception:
+        return HttpResponse('// service worker not found', content_type='application/javascript', status=404)
+
+    response = HttpResponse(content, content_type='application/javascript')
+    response['Service-Worker-Allowed'] = '/'
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+    return response
 

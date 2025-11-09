@@ -13,7 +13,7 @@ from .web_views import (
     private_chats_view, groups_view, search_view,
     stories_view, settings_view, chat_room_view, start_chat_view,
     create_group_view, join_group_view, leave_group_view,
-    otp_test_view
+    otp_test_view, service_worker
 )
 from .auth_views import OTPVerificationViewSet
 from .friends_views import FriendRequestViewSet, FriendViewSet, BlockedUserViewSet
@@ -73,6 +73,7 @@ urlpatterns = [
     path('search/', search_view, name='search'),
     path('stories/', stories_view, name='stories'),
     path('settings/', settings_view, name='settings'),
+    path('sw.js', service_worker, name='service_worker'),
     # واجهة اختبار OTP (للتطوير فقط)
     path('otp-test/', otp_test_view, name='otp_test'),
     # API
