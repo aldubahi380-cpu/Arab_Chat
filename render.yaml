@@ -47,6 +47,8 @@ services:
   - name: arab-chat-redis
     type: redis
     plan: free
+    ipAllowList:
+      - source: 0.0.0.0/0
 
 databases:
   - name: arab-chat-db
