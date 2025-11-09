@@ -8,7 +8,7 @@ services:
       pip install -r requirements.txt
       python manage.py collectstatic --noinput
     startCommand: daphne -b 0.0.0.0 -p $PORT arab_chat.asgi:application
-    postdeploy: python manage.py migrate
+    postDeployCommand: python manage.py migrate
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: arab_chat.settings_production
