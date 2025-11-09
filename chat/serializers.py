@@ -372,20 +372,19 @@ class RecentContactSerializer(serializers.ModelSerializer):
     def get_unread_count(self, obj):
         """حساب عدد الرسائل غير المقروءة"""
         from .models import ChatRoom, Message
-        try:
-            room = ChatRoom.objects.filter(
-                is_private=True,
-                members=obj.user
-            ).filter(members=obj.contact_user).annotate(
-                member_count=Count('members')
-            ).filter(member_count=2).first()
-            
-            if room:
-                return Message.objects.filter(
-                    room=room
-                ).exclude(
-                    read_by__user=obj.user
-                ).count()
+        room = ChatRoom.objects.filter(
+            is_private=True,
+            members=obj.user
+        ).filter(members=obj.contact_user).annotate(
+            member_count=Count('members')
+        ).filter(member_count=2).first()
+
+        if room:
+            return Message.objects.filter(
+                room=room
+            ).exclude(
+                read_by__user=obj.user
+            ).count()
 
 
 class CallParticipantSerializer(serializers.ModelSerializer):
@@ -459,7 +458,4 @@ class CallSessionSerializer(serializers.ModelSerializer):
             is_connected=False,
         )
         return call_session
-        except:
-            pass
-        return 0
 
