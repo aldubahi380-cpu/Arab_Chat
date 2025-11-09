@@ -1056,15 +1056,17 @@
         .spa-container {
             position: relative;
             width: 100%;
-            min-height: calc(100vh - 64px);
+            min-height: 100vh;
+            min-height: 100dvh;
             display: block;
             padding-bottom: 64px; /* ترك مساحة للشريط السفلي */
+            overflow-x: hidden;
         }
 
         .spa-content {
             position: relative;
             width: 100%;
-            min-height: calc(100vh - 64px);
+            min-height: 100%;
             display: block;
             visibility: visible;
             opacity: 1;
@@ -1085,7 +1087,7 @@
         /* Navigation Menu */
         .main-nav-menu {
             position: fixed;
-            bottom: 0;
+            bottom: env(safe-area-inset-bottom);
             left: 0;
             right: 0;
             background: var(--whatsapp-white);
@@ -1094,9 +1096,11 @@
             justify-content: space-around;
             align-items: center;
             padding: 8px 0;
-            z-index: 1000;
+            z-index: 9999;
             box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
             height: 64px;
+            transform: translateZ(0);
+            will-change: transform;
         }
 
         .nav-menu-item {
