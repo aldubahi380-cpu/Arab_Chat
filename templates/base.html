@@ -670,6 +670,44 @@
             body:has(.chat-room-page) .main-nav-menu {
                 display: none !important;
             }
+            
+            body:has(.chat-room-page) {
+                overflow: hidden;
+            }
+            
+            body:has(.chat-room-page) .spa-container {
+                padding-bottom: 0;
+                min-height: 100dvh;
+                height: 100dvh;
+                overflow: hidden;
+            }
+            
+            body:has(.chat-room-page) .spa-content {
+                height: 100%;
+            }
+            
+            body:has(.chat-room-page) .chat-window-panel {
+                position: fixed;
+                inset: 0;
+                height: 100dvh;
+                background: var(--whatsapp-white);
+                z-index: 1;
+            }
+            
+            body:has(.chat-room-page) .chat-window-header,
+            body:has(.chat-room-page) .message-input-container {
+                flex-shrink: 0;
+            }
+            
+            body:has(.chat-room-page) .messages-container {
+                padding: 20px 16px calc(96px + env(safe-area-inset-bottom));
+            }
+            
+            body:has(.chat-room-page) .message-input-container {
+                padding-bottom: max(10px, env(safe-area-inset-bottom));
+                border-top: 1px solid var(--whatsapp-gray);
+                box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
+            }
         }
 
         /* Chat Window Header */
