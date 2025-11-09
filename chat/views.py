@@ -196,105 +196,6 @@ class UserViewSet(viewsets.ModelViewSet):
             return Response(serializer.data)
         return Response([])
     
-    @action(detail=False, methods=['delete'])
-    def delete_account(self, request):
-        """حذف حساب المستخدم بالكامل من السيرفر وقاعدة البيانات"""
-        user = request.user
-        
-        try:
-            # حذف جميع البيانات المرتبطة بالمستخدم
-            
-            # 1. حذف جميع الرسائل المرسلة
-            Message.objects.filter(sender=user).delete()
-            
-            # 2. حذف جميع سجلات قراءة الرسائل
-            MessageRead.objects.filter(user=user).delete()
-            
-            # 3. حذف جميع الغرف التي أنشأها المستخدم (إذا لم يكن فيها أعضاء آخرون)
-            # أو إزالة المستخدم من الغرف المشتركة
-            from .models import ChatRoom
-            rooms_created = ChatRoom.objects.filter(created_by=user)
-            for room in rooms_created:
-                # إذا كانت الغرفة خاصة وعدد الأعضاء 2، حذفها
-                if room.is_private and room.members.count() == 2:
-                    room.delete()
-                else:
-                    # إزالة المستخدم من الغرفة
-                    room.members.remove(user)
-                    # إذا لم يكن هناك أعضاء، حذف الغرفة
-                    if room.members.count() == 0:
-                        room.delete()
-            
-            # إزالة المستخدم من جميع الغرف الأخرى
-            rooms_member = ChatRoom.objects.filter(members=user).exclude(created_by=user)
-            for room in rooms_member:
-                room.members.remove(user)
-                # إذا كانت الغرفة خاصة وعدد الأعضاء أصبح 1، حذفها
-                if room.is_private and room.members.count() <= 1:
-                    room.delete()
-            
-            # 4. حذف جميع طلبات الصداقة
-            from .models import FriendRequest
-            FriendRequest.objects.filter(from_user=user).delete()
-            FriendRequest.objects.filter(to_user=user).delete()
-            
-            # 5. حذف جميع علاقات الصداقة
-            from .models import Friend
-            Friend.objects.filter(user=user).delete()
-            Friend.objects.filter(friend=user).delete()
-            
-            # 6. حذف جميع الحظورات
-            from .models import BlockedUser
-            BlockedUser.objects.filter(user=user).delete()
-            BlockedUser.objects.filter(blocked_user=user).delete()
-            
-            # 7. حذف جميع الاستوريات
-            from .models import Story, StoryView
-            Story.objects.filter(user=user).delete()
-            StoryView.objects.filter(user=user).delete()
-            
-            # 8. حذف جميع جهات الاتصال
-            from .models import Contact
-            Contact.objects.filter(user=user).delete()
-            
-            # 9. حذف جميع المستخدمين المتواصل معهم
-            from .models import RecentContact
-            RecentContact.objects.filter(user=user).delete()
-            RecentContact.objects.filter(contact_user=user).delete()
-            
-            # 10. حذف جميع Device Tokens
-            from .models import DeviceToken
-            DeviceToken.objects.filter(user=user).delete()
-            SessionDevice.objects.filter(user=user).delete()
-            
-            # 11. حذف Token المصادقة
-            from rest_framework.authtoken.models import Token
-            try:
-                Token.objects.filter(user=user).delete()
-            except:
-                pass
-            
-            # 12. حفظ اسم المستخدم قبل الحذف (للتسجيل)
-            username = user.username
-            
-            # 13. حذف المستخدم (سيؤدي إلى حذف UserProfile تلقائياً بسبب CASCADE)
-            user.delete()
-            
-            return Response({
-                'message': f'تم حذف الحساب "{username}" بنجاح من السيرفر وقاعدة البيانات',
-                'success': True
-            }, status=status.HTTP_200_OK)
-            
-        except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f'Error deleting user account: {e}')
-            return Response({
-                'error': f'حدث خطأ أثناء حذف الحساب: {str(e)}',
-                'success': False
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
 class UserProfileViewSet(viewsets.ModelViewSet):
     """ViewSet لملفات المستخدمين"""
     queryset = UserProfile.objects.all()
@@ -997,19 +898,6 @@ class MessageViewSet(viewsets.ModelViewSet):
         message.save()
         return Response({'status': 'marked as read'})
     
-    @action(detail=False, methods=['get'])
-    def unread_count(self, request):
-        """عدد الرسائل غير المقروءة"""
-        user = request.user
-        rooms = ChatRoom.objects.filter(members=user)
-        unread = Message.objects.filter(
-            room__in=rooms
-        ).exclude(
-            read_by__user=user
-        ).count()
-        return Response({'unread_count': unread})
-
-
 class MessageReadViewSet(viewsets.ModelViewSet):
     """ViewSet لتتبع قراءة الرسائل"""
     queryset = MessageRead.objects.all()
