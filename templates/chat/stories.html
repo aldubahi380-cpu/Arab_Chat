@@ -639,13 +639,16 @@
             padding: 20px 12px 70px;
         }
 
-        async function tryShowNativeFilePicker() {
-            if (typeof window.showOpenFilePicker !== 'function') {
-                return 'unsupported';
+        function startQuickStoryFlow(event) {
+            if (event) {
+                event.preventDefault();
             }
+            clearAlert();
 
-            try {
-                const handles = await window.showOpenFilePicker({
+            state.fileDialogAwaitingSelection = true;
+
+            if (typeof window.showOpenFilePicker === 'function') {
+                window.showOpenFilePicker({
                     multiple: false,
                     excludeAcceptAllOption: false,
                     types: [
@@ -662,47 +665,38 @@
                             }
                         }
                     ]
+                }).then(async (handles) => {
+                    if (!Array.isArray(handles) || !handles[0]) {
+                        state.fileDialogAwaitingSelection = false;
+                        modals.add.show();
+                        return;
+                    }
+                    const file = await handles[0].getFile();
+                    if (!file) {
+                        state.fileDialogAwaitingSelection = false;
+                        modals.add.show();
+                        return;
+                    }
+                    prepareMediaStoryFromFile(file);
+                }).catch((error) => {
+                    if (error && error.name === 'AbortError') {
+                        state.fileDialogAwaitingSelection = false;
+                        modals.add.show();
+                        return;
+                    }
+                    console.warn('showOpenFilePicker failed:', error);
+                    const opened = triggerNativeFileDialog({ fallbackToModal: true });
+                    if (!opened) {
+                        state.fileDialogAwaitingSelection = false;
+                        modals.add.show();
+                    }
                 });
-
-                const handle = handles && handles[0];
-                if (!handle) {
-                    return 'aborted';
-                }
-
-                const file = await handle.getFile();
-                if (!file) {
-                    return 'aborted';
-                }
-
-                prepareMediaStoryFromFile(file);
-                return 'selected';
-            } catch (error) {
-                if (error && error.name === 'AbortError') {
-                    return 'aborted';
-                }
-                console.warn('showOpenFilePicker failed:', error);
-                return 'failed';
-            }
-        }
-
-        async function startQuickStoryFlow(event) {
-            if (event) {
-                event.preventDefault();
-            }
-            clearAlert();
-
-            const pickerResult = await tryShowNativeFilePicker();
-            if (pickerResult === 'selected') {
-                return;
-            }
-
-            if (pickerResult === 'aborted') {
-                modals.add.show();
                 return;
             }
 
             const opened = triggerNativeFileDialog({ fallbackToModal: true });
             if (!opened) {
+                state.fileDialogAwaitingSelection = false;
                 modals.add.show();
             }
         }
@@ -1208,7 +1202,6 @@
             }
 
             clearFileDialogFallbackTimer();
-            state.fileDialogAwaitingSelection = true;
             if (capture) {
                 elements.fileInput.setAttribute('capture', capture);
             } else {
@@ -1727,6 +1720,9 @@
         function onFileSelected(event) {
             const file = event.target.files && event.target.files[0];
             if (!file) {
+                if (state.fileDialogAwaitingSelection) {
+                    modals.add.show();
+                }
                 clearFileDialogFallbackTimer();
                 return;
             }
@@ -1891,6 +1887,7 @@
 
             document.getElementById('storyCameraOption')?.addEventListener('click', () => {
                 modals.add.hide();
+                state.fileDialogAwaitingSelection = true;
                 const opened = triggerNativeFileDialog({ capture: 'environment', fallbackToModal: true });
                 if (!opened) {
                     modals.add.show();
@@ -1899,6 +1896,7 @@
 
             document.getElementById('storyGalleryOption')?.addEventListener('click', () => {
                 modals.add.hide();
+                state.fileDialogAwaitingSelection = true;
                 const opened = triggerNativeFileDialog({ fallbackToModal: true });
                 if (!opened) {
                     modals.add.show();
