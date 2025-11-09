@@ -1891,7 +1891,7 @@
         if ('serviceWorker' in navigator) {
             const registerAppWorker = async () => {
                 try {
-                    const registration = await navigator.serviceWorker.register('{% static "pwa/sw.js" %}');
+                    const registration = await navigator.serviceWorker.register('/sw.js');
                     const enforceActivation = (worker) => {
                         if (worker) {
                             worker.postMessage({ type: 'SKIP_WAITING' });
