@@ -639,6 +639,74 @@
             padding: 20px 12px 70px;
         }
 
+        async function tryShowNativeFilePicker() {
+            if (typeof window.showOpenFilePicker !== 'function') {
+                return 'unsupported';
+            }
+
+            try {
+                const handles = await window.showOpenFilePicker({
+                    multiple: false,
+                    excludeAcceptAllOption: false,
+                    types: [
+                        {
+                            description: 'Images',
+                            accept: {
+                                'image/*': ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif']
+                            }
+                        },
+                        {
+                            description: 'Videos',
+                            accept: {
+                                'video/*': ['.mp4', '.webm', '.mov', '.m4v']
+                            }
+                        }
+                    ]
+                });
+
+                const handle = handles && handles[0];
+                if (!handle) {
+                    return 'aborted';
+                }
+
+                const file = await handle.getFile();
+                if (!file) {
+                    return 'aborted';
+                }
+
+                prepareMediaStoryFromFile(file);
+                return 'selected';
+            } catch (error) {
+                if (error && error.name === 'AbortError') {
+                    return 'aborted';
+                }
+                console.warn('showOpenFilePicker failed:', error);
+                return 'failed';
+            }
+        }
+
+        async function startQuickStoryFlow(event) {
+            if (event) {
+                event.preventDefault();
+            }
+            clearAlert();
+
+            const pickerResult = await tryShowNativeFilePicker();
+            if (pickerResult === 'selected') {
+                return;
+            }
+
+            if (pickerResult === 'aborted') {
+                modals.add.show();
+                return;
+            }
+
+            const opened = triggerNativeFileDialog({ fallbackToModal: true });
+            if (!opened) {
+                modals.add.show();
+            }
+        }
+
         .stories-header, .my-story-section, .stories-strip-wrapper {
             padding-left: 20px;
             padding-right: 20px;
@@ -949,7 +1017,8 @@
             },
             pendingMediaFile: null,
             pendingMediaType: null,
-            notificationsUnsubscribe: null
+            notificationsUnsubscribe: null,
+            fileDialogFallbackTimer: null,
         };
 
         const joinUrl = window.buildUrl || ((base, path = '') => {
@@ -1096,9 +1165,17 @@
             return `<span>${getInitials(user)}</span>`;
         }
 
+        function clearFileDialogFallbackTimer() {
+            if (state.fileDialogFallbackTimer) {
+                clearTimeout(state.fileDialogFallbackTimer);
+                state.fileDialogFallbackTimer = null;
+            }
+        }
+
         function resetMediaSelection() {
             state.pendingMediaFile = null;
             state.pendingMediaType = null;
+            clearFileDialogFallbackTimer();
             if (elements.fileInput) {
                 elements.fileInput.value = '';
             }
@@ -1121,6 +1198,65 @@
             if (firstColor) {
                 firstColor.classList.add('active');
             }
+        }
+
+        function triggerNativeFileDialog({ capture = null, fallbackToModal = false } = {}) {
+            if (!elements.fileInput) {
+                return false;
+            }
+
+            clearFileDialogFallbackTimer();
+            if (capture) {
+                elements.fileInput.setAttribute('capture', capture);
+            } else {
+                elements.fileInput.removeAttribute('capture');
+            }
+            elements.fileInput.setAttribute('accept', 'image/*,video/*');
+
+            try {
+                elements.fileInput.click();
+                if (fallbackToModal) {
+                    state.fileDialogFallbackTimer = window.setTimeout(() => {
+                        if (!state.pendingMediaFile) {
+                            modals.add.show();
+                        }
+                        state.fileDialogFallbackTimer = null;
+                    }, 500);
+                }
+                return true;
+            } catch (error) {
+                console.warn('Unable to trigger file input:', error);
+                if (fallbackToModal) {
+                    modals.add.show();
+                }
+                return false;
+            }
+        }
+
+        function prepareMediaStoryFromFile(file) {
+            if (!file) {
+                return false;
+            }
+
+            resetMediaSelection();
+            state.pendingMediaFile = file;
+            const contentType = file.type || '';
+            if (contentType.startsWith('video/')) {
+                state.pendingMediaType = 'video';
+            } else {
+                state.pendingMediaType = 'image';
+            }
+
+            const objectUrl = URL.createObjectURL(file);
+            if (state.pendingMediaType === 'video') {
+                elements.mediaPreview.innerHTML = `<video src="${objectUrl}" controls playsinline class="w-100 rounded"></video>`;
+            } else {
+                elements.mediaPreview.innerHTML = `<img src="${objectUrl}" alt="preview" class="img-fluid rounded">`;
+            }
+
+            modals.media.show();
+            clearFileDialogFallbackTimer();
+            return true;
         }
 
         function highlightFriendPill(userId, hasUnseen) {
@@ -1578,30 +1714,18 @@
         function onFileSelected(event) {
             const file = event.target.files && event.target.files[0];
             if (!file) {
-                resetMediaSelection();
+                clearFileDialogFallbackTimer();
                 return;
             }
 
-            const isVideo = file.type.startsWith('video/');
-            const isImage = file.type.startsWith('image/');
-
-            if (!isVideo && !isImage) {
+            const contentType = file.type || '';
+            if (!contentType.startsWith('image/') && !contentType.startsWith('video/')) {
                 alert('يرجى اختيار صورة أو فيديو فقط.');
                 resetMediaSelection();
                 return;
             }
 
-            state.pendingMediaFile = file;
-            state.pendingMediaType = isVideo ? 'video' : 'image';
-
-            const objectUrl = URL.createObjectURL(file);
-            if (isVideo) {
-                elements.mediaPreview.innerHTML = `<video src="${objectUrl}" controls playsinline class="w-100 rounded"></video>`;
-            } else {
-                elements.mediaPreview.innerHTML = `<img src="${objectUrl}" alt="preview" class="img-fluid rounded">`;
-            }
-
-            modals.media.show();
+            prepareMediaStoryFromFile(file);
         }
 
         async function publishMediaStory(event) {
@@ -1725,7 +1849,7 @@
         function bindEvents() {
             elements.addStoryButton?.addEventListener('click', (event) => {
                 event.stopPropagation();
-                modals.add.show();
+                startQuickStoryFlow(event);
             });
 
             elements.viewMyStoriesButton?.addEventListener('click', (event) => {
@@ -1735,50 +1859,37 @@
                 }
             });
 
-            elements.myStoryCard?.addEventListener('click', () => {
+            elements.myStoryCard?.addEventListener('click', (event) => {
+                event.stopPropagation?.();
                 const hasStory = state.myStory?.stories?.length > 0;
                 if (hasStory) {
                     openStoryViewer(state.myStory, null, 0);
                 } else {
+                    startQuickStoryFlow();
+                }
+            });
+
+            elements.emptyAddStoryLink?.addEventListener('click', (event) => {
+                event.preventDefault?.();
+                startQuickStoryFlow();
+            });
+
+            elements.refreshButton?.addEventListener('click', () => loadStoriesFeed(false));
+
+            document.getElementById('storyCameraOption')?.addEventListener('click', () => {
+                modals.add.hide();
+                const opened = triggerNativeFileDialog({ capture: 'environment', fallbackToModal: true });
+                if (!opened) {
                     modals.add.show();
                 }
             });
 
-            elements.emptyAddStoryLink?.addEventListener('click', () => modals.add.show());
-
-            elements.refreshButton?.addEventListener('click', () => loadStoriesFeed(false));
-
-            function openFilePicker(options = {}) {
-                if (!elements.fileInput) {
-                    return;
-                }
-
-                const { capture } = options;
-                if (capture) {
-                    elements.fileInput.setAttribute('capture', capture);
-                } else {
-                    elements.fileInput.removeAttribute('capture');
-                }
-                elements.fileInput.setAttribute('accept', 'image/*,video/*');
-
-                // منح المتصفح مهلة بسيطة لإغلاق الـ modal قبل فتح نافذة اختيار الملفات
-                setTimeout(() => {
-                    try {
-                        elements.fileInput.click();
-                    } catch (error) {
-                        console.warn('تعذر فتح نافذة اختيار الملفات:', error);
-                    }
-                }, 180);
-            }
-
-            document.getElementById('storyCameraOption')?.addEventListener('click', () => {
-                modals.add.hide();
-                openFilePicker({ capture: 'environment' });
-            });
-
             document.getElementById('storyGalleryOption')?.addEventListener('click', () => {
                 modals.add.hide();
-                openFilePicker();
+                const opened = triggerNativeFileDialog({ fallbackToModal: true });
+                if (!opened) {
+                    modals.add.show();
+                }
             });
 
             document.getElementById('storyTextOption')?.addEventListener('click', () => {
