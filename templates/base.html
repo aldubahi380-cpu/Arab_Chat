@@ -1177,9 +1177,40 @@
             background: rgba(37, 211, 102, 0.22);
         }
 
-        .install-app-button span.fallback-text {
+        .install-app-button span.fallback-text,
+        .install-app-cta span.fallback-text {
             color: var(--whatsapp-dark-green);
             font-weight: 600;
+        }
+
+        .install-app-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            background: rgba(37, 211, 102, 0.16);
+            color: var(--whatsapp-teal);
+            border-radius: 999px;
+            border: none;
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(7, 94, 84, 0.22);
+            transition: transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+        }
+
+        .install-app-cta[hidden] {
+            display: none !important;
+        }
+
+        .install-app-cta i {
+            font-size: 18px;
+        }
+
+        .install-app-cta:hover {
+            transform: translateY(-1px);
+            background: rgba(37, 211, 102, 0.25);
+            box-shadow: 0 8px 24px rgba(7, 94, 84, 0.3);
         }
 
         .pwa-install-fab {
@@ -2142,12 +2173,22 @@
                 window.matchMedia('(display-mode: window-controls-overlay)').matches ||
                 window.navigator.standalone === true;
 
-            const revealTriggers = () => {
+            const revealTriggers = (state) => {
+                const resolvedState = state || (promptAvailable ? 'prompt' : 'fallback');
                 installTriggers.forEach((btn) => {
                     btn.classList.add('visible');
                     btn.classList.remove('hidden');
                     btn.removeAttribute('hidden');
                     btn.setAttribute('aria-hidden', 'false');
+                    btn.setAttribute('data-state', resolvedState);
+                    const label = btn.querySelector('span');
+                    if (label) {
+                        if (resolvedState === 'prompt') {
+                            label.classList.remove('fallback-text');
+                        } else {
+                            label.classList.add('fallback-text');
+                        }
+                    }
                 });
             };
 
@@ -2158,6 +2199,11 @@
                     btn.setAttribute('aria-hidden', 'true');
                     if (btn.classList.contains('pwa-install-fab')) {
                         btn.classList.add('hidden');
+                    }
+                    btn.removeAttribute('data-state');
+                    const label = btn.querySelector('span');
+                    if (label) {
+                        label.classList.remove('fallback-text');
                     }
                 });
             };
@@ -2202,9 +2248,8 @@
                 return;
             }
 
-            if (promptAvailable) {
-                revealTriggers();
-            } else {
+            revealTriggers();
+            if (!promptAvailable) {
                 scheduleFallbackGuide();
             }
 
@@ -2218,6 +2263,7 @@
                 }
 
                 if (promptAvailable && deferredPrompt) {
+                    revealTriggers('prompt');
                     deferredPrompt.prompt();
                     const { outcome } = await deferredPrompt.userChoice;
                     deferredPrompt = null;
@@ -2228,9 +2274,11 @@
                         closeGuide();
                         clearFallbackTimer();
                     } else {
+                        revealTriggers('fallback');
                         scheduleFallbackGuide();
                     }
                 } else {
+                    revealTriggers('fallback');
                     openGuide();
                     scheduleFallbackGuide();
                 }
@@ -2252,7 +2300,7 @@
                 deferredPrompt = event;
                 promptAvailable = true;
                 store.deferredPrompt = event;
-                revealTriggers();
+                revealTriggers('prompt');
                 closeGuide();
                 clearFallbackTimer();
             });
