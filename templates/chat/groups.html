@@ -4,29 +4,38 @@
 
 {% block extra_css %}
 <style>
+    .groups-page {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
+
     .groups-container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        min-height: 100%;
         background: var(--whatsapp-white);
-        min-height: 100vh;
+        border-radius: var(--radius-lg);
+        overflow: hidden;
     }
 
     .groups-header {
         background: var(--whatsapp-teal);
         color: var(--whatsapp-white);
-        padding: 20px;
-        border-radius: 12px 12px 0 0;
-        margin-bottom: 0;
+        padding: 24px;
         display: flex;
         justify-content: space-between;
         align-items: center;
+        gap: 16px;
     }
 
-    .groups-header h2 {
+    .groups-header-title {
         margin: 0;
         font-size: 24px;
-        font-weight: 500;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
     }
 
     .create-group-btn {
@@ -50,17 +59,53 @@
         transform: translateY(-2px);
     }
 
-    .groups-list {
+    .search-box-groups {
+        padding: 20px 24px;
+        border-bottom: 1px solid var(--whatsapp-gray);
         background: var(--whatsapp-white);
-        padding: 20px;
+    }
+
+    .search-input-wrapper {
+        position: relative;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 12px 16px 12px 50px;
+        border: 1px solid var(--whatsapp-gray);
+        border-radius: 25px;
+        font-size: 15px;
+        outline: none;
+        transition: all 0.3s;
+    }
+
+    .search-input:focus {
+        border-color: var(--whatsapp-teal);
+        box-shadow: 0 0 0 3px rgba(7, 94, 84, 0.1);
+    }
+
+    .search-icon {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--whatsapp-dark-gray);
+        pointer-events: none;
+    }
+
+    .groups-list {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        padding: 24px;
+        background: var(--whatsapp-white);
     }
 
     .group-item {
         background: var(--whatsapp-white);
         border: 1px solid var(--whatsapp-gray);
-        border-radius: 12px;
+        border-radius: var(--radius-md);
         padding: 20px;
-        margin-bottom: 15px;
         transition: all 0.3s;
         cursor: pointer;
     }
@@ -75,19 +120,27 @@
         justify-content: space-between;
         align-items: flex-start;
         margin-bottom: 10px;
+        gap: 12px;
+    }
+
+    .group-item-main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
     }
 
     .group-item-title {
         font-size: 18px;
         font-weight: 600;
         color: #111;
-        margin-bottom: 5px;
+        margin: 0;
     }
 
     .group-item-description {
         color: var(--whatsapp-dark-gray);
         font-size: 14px;
-        margin-bottom: 10px;
+        margin: 0;
         line-height: 1.5;
     }
 
@@ -97,12 +150,14 @@
         gap: 15px;
         color: var(--whatsapp-dark-gray);
         font-size: 13px;
+        flex-wrap: wrap;
     }
 
     .group-item-actions {
         display: flex;
         gap: 10px;
         margin-top: 15px;
+        flex-wrap: wrap;
     }
 
     .group-btn {
@@ -178,128 +233,130 @@
         margin-bottom: 20px;
     }
 
-    .search-box-groups {
-        padding: 20px;
-        background: var(--whatsapp-white);
-        border-bottom: 1px solid var(--whatsapp-gray);
-    }
-
-    .search-input-wrapper {
-        position: relative;
-    }
-
-    .search-input {
-        width: 100%;
-        padding: 12px 16px 12px 50px;
-        border: 1px solid var(--whatsapp-gray);
-        border-radius: 25px;
-        font-size: 15px;
-        outline: none;
-        transition: all 0.3s;
-    }
-
-    .search-input:focus {
-        border-color: var(--whatsapp-teal);
-        box-shadow: 0 0 0 3px rgba(7, 94, 84, 0.1);
-    }
-
-    .search-icon {
-        position: absolute;
-        right: 15px;
-        top: 50%;
-        transform: translateY(-50%);
+    .groups-empty-title {
+        margin-top: 20px;
         color: var(--whatsapp-dark-gray);
-        pointer-events: none;
+    }
+
+    .groups-empty-subtitle {
+        margin-top: 10px;
+        color: var(--whatsapp-dark-gray);
+        opacity: 0.7;
+    }
+
+    .groups-empty-action {
+        margin-top: 20px;
+        display: inline-flex;
+    }
+
+    @media (max-width: 768px) {
+        .groups-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .create-group-btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .groups-list {
+            padding: 20px;
+        }
+
+        .group-item {
+            padding: 16px;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="groups-container">
-    <!-- Header -->
-    <div class="groups-header">
-        <h2><i class="fas fa-users"></i> المجموعات العامة</h2>
-        <a href="{% url 'create_group' %}" class="create-group-btn">
-            <i class="fas fa-plus"></i> إنشاء مجموعة جديدة
-        </a>
-    </div>
-
-    <!-- Search -->
-    <div class="search-box-groups">
-        <div class="search-input-wrapper">
-            <i class="fas fa-search search-icon"></i>
-            <input 
-                type="text" 
-                id="groupSearchInput" 
-                class="search-input" 
-                placeholder="ابحث عن مجموعة..."
-                autocomplete="off"
-            >
+<div class="page-shell page-shell--flush groups-page">
+    <div class="groups-container">
+        <!-- Header -->
+        <div class="groups-header">
+            <h2 class="groups-header-title"><i class="fas fa-users"></i> المجموعات العامة</h2>
+            <a href="{% url 'create_group' %}" class="create-group-btn">
+                <i class="fas fa-plus"></i> إنشاء مجموعة جديدة
+            </a>
         </div>
-    </div>
 
-    <!-- Groups List -->
-    <div class="groups-list" id="groupsList">
-        {% if groups %}
-            {% for group_data in groups %}
-                <div class="group-item" data-group-name="{{ group_data.group.name|lower }}" data-group-description="{{ group_data.group.description|lower }}">
-                    <div class="group-item-header">
-                        <div style="flex: 1;">
-                            <div class="group-item-title">
-                                {{ group_data.group.name }}
-                                {% if group_data.is_member %}
-                                    <span class="group-badge badge-member">
-                                        <i class="fas fa-check-circle"></i> عضو
-                                    </span>
-                                {% endif %}
-                                {% if group_data.group.created_by == user %}
-                                    <span class="group-badge badge-creator">
-                                        <i class="fas fa-crown"></i> منشئ
-                                    </span>
-                                {% endif %}
-                            </div>
-                            <div class="group-item-description">
-                                {{ group_data.group.description|default:"لا يوجد وصف" }}
-                            </div>
-                            <div class="group-item-meta">
-                                <span><i class="fas fa-users"></i> {{ group_data.member_count }} عضو</span>
-                                <span><i class="fas fa-calendar"></i> {{ group_data.group.created_at|date:"Y-m-d" }}</span>
-                                {% if group_data.group.created_by %}
-                                    <span><i class="fas fa-user"></i> منشئ: {{ group_data.group.created_by.username }}</span>
-                                {% endif %}
+        <!-- Search -->
+        <div class="search-box-groups">
+            <div class="search-input-wrapper">
+                <i class="fas fa-search search-icon"></i>
+                <input 
+                    type="text" 
+                    id="groupSearchInput" 
+                    class="search-input" 
+                    placeholder="ابحث عن مجموعة..."
+                    autocomplete="off"
+                >
+            </div>
+        </div>
+
+        <!-- Groups List -->
+        <div class="groups-list" id="groupsList">
+            {% if groups %}
+                {% for group_data in groups %}
+                    <div class="group-item" data-group-name="{{ group_data.group.name|lower }}" data-group-description="{{ group_data.group.description|lower }}">
+                        <div class="group-item-header">
+                            <div class="group-item-main">
+                                <div class="group-item-title">
+                                    {{ group_data.group.name }}
+                                    {% if group_data.is_member %}
+                                        <span class="group-badge badge-member">
+                                            <i class="fas fa-check-circle"></i> عضو
+                                        </span>
+                                    {% endif %}
+                                    {% if group_data.group.created_by == user %}
+                                        <span class="group-badge badge-creator">
+                                            <i class="fas fa-crown"></i> منشئ
+                                        </span>
+                                    {% endif %}
+                                </div>
+                                <div class="group-item-description">
+                                    {{ group_data.group.description|default:"لا يوجد وصف" }}
+                                </div>
+                                <div class="group-item-meta">
+                                    <span><i class="fas fa-users"></i> {{ group_data.member_count }} عضو</span>
+                                    <span><i class="fas fa-calendar"></i> {{ group_data.group.created_at|date:"Y-m-d" }}</span>
+                                    {% if group_data.group.created_by %}
+                                        <span><i class="fas fa-user"></i> منشئ: {{ group_data.group.created_by.username }}</span>
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="group-item-actions">
-                        {% if group_data.is_member %}
-                            <a href="{% url 'chat_room' group_data.group.id %}" class="group-btn open">
-                                <i class="fas fa-comments"></i> فتح المجموعة
-                            </a>
-                            {% if group_data.group.created_by != user %}
-                                <a href="{% url 'leave_group' group_data.group.id %}" class="group-btn leave" onclick="return confirm('هل أنت متأكد من مغادرة هذه المجموعة؟');">
-                                    <i class="fas fa-sign-out-alt"></i> مغادرة
+                        <div class="group-item-actions">
+                            {% if group_data.is_member %}
+                                <a href="{% url 'chat_room' group_data.group.id %}" class="group-btn open">
+                                    <i class="fas fa-comments"></i> فتح المجموعة
+                                </a>
+                                {% if group_data.group.created_by != user %}
+                                    <a href="{% url 'leave_group' group_data.group.id %}" class="group-btn leave" onclick="return confirm('هل أنت متأكد من مغادرة هذه المجموعة؟');">
+                                        <i class="fas fa-sign-out-alt"></i> مغادرة
+                                    </a>
+                                {% endif %}
+                            {% else %}
+                                <a href="{% url 'join_group' group_data.group.id %}" class="group-btn join">
+                                    <i class="fas fa-user-plus"></i> الانضمام
                                 </a>
                             {% endif %}
-                        {% else %}
-                            <a href="{% url 'join_group' group_data.group.id %}" class="group-btn join">
-                                <i class="fas fa-user-plus"></i> الانضمام
-                            </a>
-                        {% endif %}
+                        </div>
                     </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-users"></i>
+                    <h4 class="groups-empty-title">لا توجد مجموعات عامة</h4>
+                    <p class="groups-empty-subtitle">كن أول من ينشئ مجموعة عامة!</p>
+                    <a href="{% url 'create_group' %}" class="create-group-btn groups-empty-action">
+                        <i class="fas fa-plus"></i> إنشاء مجموعة جديدة
+                    </a>
                 </div>
-            {% endfor %}
-        {% else %}
-            <div class="empty-state">
-                <i class="fas fa-users"></i>
-                <h4 style="margin-top: 20px; color: var(--whatsapp-dark-gray);">لا توجد مجموعات عامة</h4>
-                <p style="margin-top: 10px; color: var(--whatsapp-dark-gray); opacity: 0.7;">
-                    كن أول من ينشئ مجموعة عامة!
-                </p>
-                <a href="{% url 'create_group' %}" class="create-group-btn" style="margin-top: 20px;">
-                    <i class="fas fa-plus"></i> إنشاء مجموعة جديدة
-                </a>
-            </div>
-        {% endif %}
+            {% endif %}
+        </div>
     </div>
 </div>
 
