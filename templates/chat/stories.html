@@ -9,9 +9,13 @@
     }
 
     .stories-page {
-        max-width: 1080px;
-        margin: 0 auto;
-        padding: 32px 20px 80px;
+        padding: 32px 24px 80px;
+    }
+
+    .stories-strip-heading {
+        margin: 0;
+        color: var(--whatsapp-teal);
+        font-weight: 700;
     }
 
     .stories-card {
@@ -762,6 +766,7 @@
 {% endblock %}
 
 {% block content %}
+<div class="page-shell page-shell--flush">
 <div class="stories-page">
     <div class="stories-card">
         <div class="stories-loader" id="storiesLoading">
@@ -823,7 +828,7 @@
 
         <section class="stories-strip-wrapper">
             <div class="d-flex align-items-center justify-content-between mb-3">
-                <h5 class="m-0" style="color: var(--whatsapp-teal); font-weight: 700;">استوريات الأصدقاء</h5>
+                <h5 class="stories-strip-heading">استوريات الأصدقاء</h5>
                 <small class="text-muted" id="storiesCounterText"></small>
                         </div>
             <div class="stories-strip" id="friendsStoriesStrip"></div>
@@ -837,6 +842,7 @@
             </div>
         </section>
     </div>
+</div>
 </div>
 
 <!-- Story Viewer Overlay -->

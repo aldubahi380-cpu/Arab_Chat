@@ -135,15 +135,50 @@
             background: var(--whatsapp-gray);
             min-height: 100vh;
             min-height: 100dvh; /* استخدام dvh للدعم الحديث */
-            padding-top: 70px; /* Space for top navigation menu */
+            padding-top: 0;
+            padding-bottom: 80px;
             overflow-x: hidden;
             overflow-y: auto;
+        }
+
+        body:has(.main-nav-menu) {
+            padding-bottom: calc(88px + env(safe-area-inset-bottom));
         }
         
         /* على الموبايل، إزالة padding-top للصفحات التي تحتوي على whatsapp-container */
         @media (max-width: 768px) {
             body:has(.chat-room-page) {
                 padding-top: 0 !important;
+            }
+        }
+
+        .page-shell {
+            width: calc(100% - 32px);
+            max-width: 1200px;
+            margin: 32px auto;
+            padding: 24px;
+            background: var(--whatsapp-white);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            transition: box-shadow var(--transition-base), transform var(--transition-base);
+        }
+
+        .page-shell--flush {
+            padding: 0;
+        }
+
+        .page-shell--minimal {
+            box-shadow: none;
+            background: transparent;
+        }
+
+        @media (max-width: 768px) {
+            .page-shell {
+                width: calc(100% - 20px);
+                margin: 16px auto;
+                padding: 16px;
+                border-radius: var(--radius-md);
+                box-shadow: none;
             }
         }
 
@@ -161,7 +196,7 @@
         /* Layout للصفحات التي تعرض قائمة فقط (بدون نافذة دردشة) */
         .whatsapp-container.chats-list-only {
             grid-template-columns: 1fr;
-            max-width: 100%;
+            max-width: 1200px;
         }
 
         /* Mobile Layout */

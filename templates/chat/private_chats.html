@@ -2,7 +2,39 @@
 
 {% block title %}الدردشات - عرب شات{% endblock %}
 
+{% block extra_css %}
+<style>
+    .chat-brand-title {
+        font-weight: 500;
+        font-size: 18px;
+        color: var(--whatsapp-white);
+    }
+
+    .chat-section-heading {
+        color: var(--whatsapp-teal);
+        font-weight: 700;
+    }
+
+    .chat-start-hint {
+        font-style: italic;
+        opacity: 0.7;
+    }
+
+    .chat-empty-title {
+        margin-top: 20px;
+        color: var(--whatsapp-dark-gray);
+    }
+
+    .chat-empty-subtitle {
+        margin-top: 10px;
+        color: var(--whatsapp-dark-gray);
+        opacity: 0.7;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
+<div class="page-shell page-shell--flush" data-shell="chats">
 <div class="whatsapp-container chats-list-only" data-page="chats">
     <!-- Chat List Panel -->
     <div class="chat-list-panel">
@@ -16,7 +48,7 @@
                         <i class="fas fa-user"></i>
                     {% endif %}
                 </div>
-                <span style="font-weight: 500; font-size: 18px; color: var(--whatsapp-white);">عرب شات</span>
+                <span class="chat-brand-title">عرب شات</span>
             </div>
             <div class="header-right">
                 <button class="icon-btn" title="الكاميرا">
@@ -100,7 +132,7 @@
                                         {{ contact_data.last_message.content|truncatewords:20 }}
                                     </span>
                                 {% else %}
-                                    <span style="font-style: italic; opacity: 0.7;">ابدأ المحادثة</span>
+                                    <span class="chat-start-hint">ابدأ المحادثة</span>
                                 {% endif %}
                                 {% if contact_data.unread_count > 0 %}
                                     <span class="unread-badge">{{ contact_data.unread_count }}</span>
@@ -113,8 +145,8 @@
             {% else %}
                 <div class="empty-chat">
                     <i class="fas fa-comments"></i>
-                    <h4 style="margin-top: 20px; color: var(--whatsapp-dark-gray);">لا توجد محادثات</h4>
-                    <p style="margin-top: 10px; color: var(--whatsapp-dark-gray); opacity: 0.7;">ابدأ محادثة جديدة من خلال البحث</p>
+                    <h4 class="chat-empty-title">لا توجد محادثات</h4>
+                    <p class="chat-empty-subtitle">ابدأ محادثة جديدة من خلال البحث</p>
                 </div>
             {% endif %}
         </div>
@@ -128,6 +160,7 @@
     <!-- Note: لا تظهر نافذة الدردشة هنا - فقط قائمة المستخدمين -->
 
     <!-- Note: نافذة الدردشة تظهر في صفحة منفصلة (chat_room.html) -->
+</div>
 </div>
 
 <script>
