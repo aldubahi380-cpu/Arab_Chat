@@ -144,14 +144,14 @@
                 <!-- الحساب -->
                 <div id="account" class="tab-pane fade show active settings-section">
                     <h5>إعدادات الحساب</h5>
-                    <form enctype="multipart/form-data">
+                    <form id="accountSettingsForm" enctype="multipart/form-data">
                         <div class="mb-3">
                             <label class="form-label">صورة الغلاف</label>
                             {% if profile and profile.cover_image %}
-                                <div class="profile-cover-preview" style="background-image: url('{{ profile.cover_image.url }}');"></div>
+                                <div class="profile-cover-preview" data-preview="cover" style="background-image: url('{{ profile.cover_image.url }}');"></div>
                                 <small class="form-text text-muted">الصورة الحالية سيتم استبدالها إذا قمت برفع صورة جديدة.</small>
                             {% else %}
-                                <div class="profile-cover-preview">
+                                <div class="profile-cover-preview" data-preview="cover">
                                     <div class="profile-cover-placeholder">لا توجد صورة غلاف حالياً</div>
                                 </div>
                             {% endif %}
@@ -163,16 +163,16 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label">البريد الإلكتروني</label>
-                            <input type="email" class="form-control" value="{{ user.email }}">
+                            <input type="email" class="form-control" name="email" value="{{ user.email }}" readonly>
                         </div>
                         {% if profile %}
                             <div class="mb-3">
                                 <label class="form-label">رقم الهاتف</label>
-                                <input type="tel" class="form-control" value="{{ profile.phone }}" readonly>
+                                <input type="tel" class="form-control" name="phone" value="{{ profile.phone }}" readonly>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">نبذة عني</label>
-                                <textarea class="form-control" rows="3">{{ profile.bio }}</textarea>
+                                <textarea class="form-control" name="bio" rows="3">{{ profile.bio }}</textarea>
                             </div>
                         {% endif %}
                         <button type="submit" class="btn btn-primary">حفظ التغييرات</button>
@@ -525,7 +525,97 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     persistNotificationSettings();
+
+    const accountForm = document.getElementById('accountSettingsForm');
+    if (accountForm) {
+        const submitButton = accountForm.querySelector('button[type="submit"]');
+        const coverInput = accountForm.querySelector('input[name="cover_image"]');
+        const coverPreview = accountForm.querySelector('[data-preview="cover"]');
+        const CSRF_TOKEN = getCookie('csrftoken');
+
+        if (coverInput && coverPreview) {
+            coverInput.addEventListener('change', function(event) {
+                const file = event.target.files && event.target.files[0];
+                if (!file) {
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    coverPreview.style.backgroundImage = `url('${e.target.result}')`;
+                    coverPreview.querySelector('.profile-cover-placeholder')?.remove();
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        accountForm.addEventListener('submit', async function(event) {
+            event.preventDefault();
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الحفظ...';
+            }
+
+            try {
+                const token = localStorage.getItem('auth_token') || '';
+                if (!token) {
+                    throw new Error('يرجى تسجيل الدخول أولاً');
+                }
+
+                const formData = new FormData(accountForm);
+                const bioField = accountForm.querySelector('textarea[name="bio"]');
+                if (bioField) {
+                    formData.set('bio', bioField.value.trim());
+                }
+
+                const response = await fetch(buildApiUrl('profiles/me/'), {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Token ${token}`,
+                        ...(CSRF_TOKEN ? { 'X-CSRFToken': CSRF_TOKEN } : {}),
+                    },
+                    body: formData,
+                    credentials: 'include',
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || errorData.detail || 'تعذر حفظ البيانات');
+                }
+
+                const data = await response.json();
+                if (data.cover_image_url && coverPreview) {
+                    coverPreview.style.backgroundImage = `url('${data.cover_image_url}')`;
+                    coverPreview.querySelector('.profile-cover-placeholder')?.remove();
+                }
+                alert('✅ تم تحديث بيانات الحساب بنجاح');
+            } catch (error) {
+                console.error('Error updating profile:', error);
+                alert('❌ تعذر حفظ التغييرات: ' + error.message);
+            } finally {
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = 'حفظ التغييرات';
+                }
+            }
+        });
+    }
 });
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            // Does this cookie string begin with the name we want?
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
 </script>
 {% endblock %}
 
