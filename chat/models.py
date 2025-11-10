@@ -80,6 +80,8 @@ class Message(models.Model):
     is_read = models.BooleanField(default=False, verbose_name='مقروءة')
     is_deleted = models.BooleanField(default=False, verbose_name='محذوفة')  # حذف ناعم
     deleted_at = models.DateTimeField(blank=True, null=True, verbose_name='تاريخ الحذف')
+    is_edited = models.BooleanField(default=False, verbose_name='تم التعديل')
+    edited_at = models.DateTimeField(blank=True, null=True, verbose_name='تاريخ التعديل')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الإرسال')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='تاريخ التحديث')
 

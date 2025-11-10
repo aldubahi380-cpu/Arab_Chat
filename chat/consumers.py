@@ -139,6 +139,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'timestamp': event.get('timestamp', ''),
             'message_id': event.get('message_id', ''),
         }))
+
+    async def message_updated(self, event):
+        """إشعار تحديث الرسالة للمستخدمين"""
+        await self.send(text_data=json.dumps({
+            'type': 'message_updated',
+            'message_id': event.get('message_id'),
+            'content': event.get('content', ''),
+            'edited_at': event.get('edited_at', ''),
+            'sender_id': event.get('sender_id'),
+            'message_type': event.get('message_type', 'text'),
+        }))
     
     @database_sync_to_async
     def mark_message_as_read(self, message_id):

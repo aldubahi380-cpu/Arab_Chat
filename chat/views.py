@@ -32,6 +32,8 @@ from .media_utils import (
 )
 from .tasks import send_message_notification_task
 from .tasks import send_call_invite_task
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 
 logger = logging.getLogger(__name__)
 
@@ -495,6 +497,82 @@ class MessageViewSet(viewsets.ModelViewSet):
             'message_id': message.id,
             'success': True
         })
+
+    def update(self, request, *args, **kwargs):
+        kwargs['partial'] = True
+        return self.partial_update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        """تعديل رسالة نصية خاصة بالمرسل"""
+        message = self.get_object()
+
+        if message.sender != request.user:
+            return Response(
+                {'error': '❌ يمكنك تعديل رسائلك فقط', 'success': False},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if message.is_deleted:
+            return Response(
+                {'error': 'لا يمكن تعديل رسالة محذوفة', 'success': False},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if message.message_type != 'text':
+            return Response(
+                {'error': 'يمكن تعديل الرسائل النصية فقط', 'success': False},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        content = request.data.get('content')
+        if content is None:
+            return Response(
+                {'error': 'يجب إرسال محتوى الرسالة', 'success': False},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        content = str(content).strip()
+        if not content:
+            return Response(
+                {'error': 'الرسالة لا يمكن أن تكون فارغة', 'success': False},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if len(content) > 1000:
+            return Response(
+                {'error': 'الرسالة طويلة جداً', 'success': False},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if content == message.content:
+            serializer = self.get_serializer(message)
+            return Response({'success': False, 'message': serializer.data, 'warning': 'لم يتم تعديل الرسالة'})
+
+        message.content = content
+        message.is_edited = True
+        message.edited_at = timezone.now()
+        message.save(update_fields=['content', 'is_edited', 'edited_at', 'updated_at'])
+
+        serializer = self.get_serializer(message)
+
+        channel_layer = get_channel_layer()
+        if channel_layer:
+            try:
+                async_to_sync(channel_layer.group_send)(
+                    f'chat_{message.room.id}',
+                    {
+                        'type': 'message_updated',
+                        'message_id': message.id,
+                        'content': message.content,
+                        'sender_id': message.sender_id,
+                        'edited_at': message.edited_at.isoformat() if message.edited_at else '',
+                        'message_type': message.message_type,
+                    }
+                )
+            except Exception:
+                logger.exception('Failed to broadcast message update for message %s', message.id)
+
+        return Response({'success': True, 'message': serializer.data})
     
     @action(detail=True, methods=['delete'])
     def delete_message(self, request, pk=None):
@@ -820,10 +898,6 @@ class MessageViewSet(viewsets.ModelViewSet):
     def send_notification_to_other_users(self, room, message):
         """إرسال إشعار للمستخدمين الآخرين عند استقبال رسالة جديدة"""
         try:
-            from channels.layers import get_channel_layer
-            from asgiref.sync import async_to_sync
-            from django.utils import timezone
-            
             channel_layer = get_channel_layer()
             if not channel_layer:
                 return

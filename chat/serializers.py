@@ -89,8 +89,8 @@ class MessageSerializer(serializers.ModelSerializer):
         model = Message
         fields = ['id', 'room', 'sender', 'content', 'message_type', 'file', 
                   'file_url', 'file_name', 'file_size', 'original_available', 'original_download_url',
-                  'is_read', 'read_by', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'is_read', 'created_at', 'updated_at']
+                  'is_read', 'read_by', 'is_edited', 'edited_at', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'is_read', 'is_edited', 'edited_at', 'created_at', 'updated_at']
     
     def get_read_by(self, obj):
         return [mr.user.username for mr in obj.read_by.all()]

@@ -291,6 +291,129 @@
     #voiceBtn.recording {
         color: #e53935;
     }
+
+    .message-edited-tag {
+        font-size: 11px;
+        color: rgba(0, 0, 0, 0.6);
+        margin-right: 6px;
+    }
+
+    .message.sent .message-edited-tag {
+        color: rgba(0, 0, 0, 0.55);
+    }
+
+    .edit-mode-banner {
+        display: none;
+        background: rgba(7, 94, 84, 0.1);
+        border: 1px solid rgba(7, 94, 84, 0.2);
+        color: var(--whatsapp-dark-gray);
+        padding: 10px 14px;
+        border-radius: 12px;
+        margin: 0 16px 8px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .edit-mode-banner.visible {
+        display: flex;
+    }
+
+    .edit-mode-text {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .edit-mode-banner button {
+        background: none;
+        border: none;
+        color: #dc3545;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .message-actions-modal {
+        position: fixed;
+        inset: 0;
+        display: none;
+        z-index: 1200;
+    }
+
+    .message-actions-modal.visible {
+        display: block;
+    }
+
+    .message-actions-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0,0,0,0.4);
+    }
+
+    .message-actions-panel {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: var(--whatsapp-white);
+        border-top-left-radius: 16px;
+        border-top-right-radius: 16px;
+        box-shadow: 0 -10px 30px rgba(0,0,0,0.15);
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .message-action-option {
+        width: 100%;
+        padding: 12px;
+        border: none;
+        border-radius: 12px;
+        background: var(--whatsapp-light-gray);
+        color: #222;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: background var(--transition-fast);
+    }
+
+    .message-action-option:hover {
+        background: var(--whatsapp-gray);
+    }
+
+    .message-action-option.danger {
+        background: #ffe5e5;
+        color: #d32f2f;
+    }
+
+    .message-action-option.cancel {
+        background: transparent;
+        color: var(--whatsapp-dark-gray);
+    }
+
+    .message-action-option.disabled,
+    .message-action-option:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        background: var(--whatsapp-light-gray);
+    }
+
+    @media (min-width: 769px) {
+        .message-actions-panel {
+            position: absolute;
+            right: 20px;
+            bottom: auto;
+            top: calc(50% - 60px);
+            width: 220px;
+            border-radius: 16px;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -436,10 +559,14 @@
 
         <!-- Messages Container -->
         <div class="messages-container" id="messagesContainer">
+            <div class="edit-mode-banner" id="editModeBanner">
+                <div class="edit-mode-text" id="editModeText"></div>
+                <button type="button" id="cancelEditButton">إلغاء</button>
+            </div>
             {% if messages %}
                 {% for message in messages %}
                     {% if not message.is_deleted %}
-                    <div class="message {% if message.sender == user %}sent{% else %}received{% endif %}" data-message-id="{{ message.id }}">
+                    <div class="message {% if message.sender == user %}sent{% else %}received{% endif %}" data-message-id="{{ message.id }}" data-owner="{% if message.sender == user %}1{% else %}0{% endif %}" data-message-type="{{ message.message_type }}">
                         <div class="message-bubble">
                             {% if message.message_type == 'image' and message.file %}
                                 <div class="message-image">
@@ -465,27 +592,24 @@
                                 </div>
                             {% endif %}
                             {% if message.content %}
-                                <div>{{ message.content }}</div>
+                                <div class="message-content">{{ message.content }}</div>
                             {% endif %}
                             <div class="message-time">
+                                {% if message.is_edited %}
+                                    <span class="message-edited-tag" title="تم التعديل">تم التعديل</span>
+                                {% endif %}
                                 {{ message.created_at|date:"H:i" }}
                                 {% if message.sender == user %}
                                     {% comment %} عرض حالة الرسالة {% endcomment %}
                                     {% with read_count=message.read_by.count member_count=room.members.count %}
                                         {% if read_count >= member_count|add:"-1" %}
-                                            {% comment %} تم القراءة من قبل جميع الأعضاء {% endcomment %}
                                             <i class="fas fa-check-double message-status read" style="color: #4FC3F7; margin-right: 4px;" title="تم القراءة"></i>
                                         {% elif read_count > 0 %}
-                                            {% comment %} تم التسليم {% endcomment %}
                                             <i class="fas fa-check-double message-status delivered" style="color: #999; margin-right: 4px;" title="تم التسليم"></i>
                                         {% else %}
-                                            {% comment %} تم الإرسال فقط {% endcomment %}
                                             <i class="fas fa-check message-status sent" style="color: #999; margin-right: 4px;" title="تم الإرسال"></i>
                                         {% endif %}
                                     {% endwith %}
-                                    <button class="delete-message-btn" onclick="deleteMessage({{ message.id }})" title="حذف الرسالة" style="background: none; border: none; color: #999; cursor: pointer; margin-right: 5px; padding: 2px 5px;">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
                                 {% endif %}
                             </div>
                         </div>
@@ -523,6 +647,15 @@
             <span id="recordingTimer"><i class="fas fa-circle" style="color:#e53935; margin-left:6px;"></i>00:00</span>
             <span class="recording-hint">حرر للإرسال</span>
             <button type="button" id="cancelRecordingBtn">إلغاء</button>
+        </div>
+        
+        <div class="message-actions-modal" id="messageActionsModal" aria-hidden="true">
+            <div class="message-actions-backdrop" id="messageActionsBackdrop"></div>
+            <div class="message-actions-panel" role="dialog" aria-modal="true">
+                <button type="button" class="message-action-option" id="editMessageButton"><i class="fas fa-pen"></i> تعديل الرسالة</button>
+                <button type="button" class="message-action-option danger" id="deleteMessageButton"><i class="fas fa-trash"></i> حذف الرسالة</button>
+                <button type="button" class="message-action-option cancel" id="cancelActionsButton">إلغاء</button>
+            </div>
         </div>
         
         <div id="mediaEditorModal" class="media-editor-overlay" aria-hidden="true">
@@ -934,7 +1067,9 @@ async function uploadMedia(file, messageType, caption) {
         'sent',
         data.message_type || messageType,
         data.file_url || null,
-        data.file_name || file.name
+        data.file_name || file.name,
+        data.is_edited || false,
+        data.edited_at || null
     );
 
     document.getElementById('fileInput').value = '';
@@ -1194,13 +1329,24 @@ function connectWebSocket() {
                     messageStatus,
                     data.message_type || 'text',
                     data.file_url || null,
-                    data.file_name || null
+                    data.file_name || null,
+                    data.is_edited || false,
+                    data.edited_at || null
                 );
             } else if (data.type === 'message_read') {
                 // تحديث حالة الرسالة عند القراءة
                 if (data.message_id) {
                     updateMessageStatus(data.message_id, 'read');
                 }
+            } else if (data.type === 'message_updated') {
+                updateMessageInUI({
+                    id: data.message_id,
+                    content: data.content,
+                    is_edited: true,
+                    edited_at: data.edited_at,
+                    sender_id: data.sender_id,
+                    message_type: data.message_type || 'text',
+                });
             } else if (data.type === 'typing') {
                 // Handle typing indicator
                 showTypingIndicator(data.user, data.is_typing);
@@ -1241,7 +1387,7 @@ function connectWebSocket() {
 }
 
 // Add message to UI with animation - دالة موحدة تدعم الملفات
-function addMessageToUI(content, sender, senderId, timestamp, messageId = null, messageStatus = 'sent', messageType = 'text', fileUrl = null, fileName = null) {
+function addMessageToUI(content, sender, senderId, timestamp, messageId = null, messageStatus = 'sent', messageType = 'text', fileUrl = null, fileName = null, isEdited = false, editedAt = null) {
     const messagesContainer = document.getElementById('messagesContainer');
     const isEmpty = messagesContainer.querySelector('.empty-chat');
     
@@ -1266,9 +1412,10 @@ function addMessageToUI(content, sender, senderId, timestamp, messageId = null, 
     if (messageId) {
         messageDiv.setAttribute('data-message-id', messageId);
     }
+    messageDiv.dataset.owner = isSent ? '1' : '0';
+    messageDiv.dataset.messageType = messageType || 'text';
     
     let messageContent = '';
-    let actionsHtml = '';
     const cleanedFileName = fileName ? fileName.split('/').pop() : '';
     // إضافة الملفات إذا كانت موجودة
     if (messageType === 'image' && fileUrl) {
@@ -1283,12 +1430,13 @@ function addMessageToUI(content, sender, senderId, timestamp, messageId = null, 
     }
 
     // إضافة المحتوى النصي (مع حماية من XSS)
-    if (content && content !== '[تم حذف هذه الرسالة]') {
+    if (content) {
         const escapedContent = content.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        messageContent += `<div>${escapedContent}</div>`;
+        messageContent += `<div class="message-content">${escapedContent}</div>`;
     }
     
     const time = new Date(timestamp).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+    const editedTag = isEdited ? '<span class="message-edited-tag" title="تم التعديل">تم التعديل</span>' : '';
     let statusIcon = '';
     if (isSent) {
         if (messageStatus === 'read') {
@@ -1308,7 +1456,7 @@ function addMessageToUI(content, sender, senderId, timestamp, messageId = null, 
         <div class="message-bubble">
             ${messageContent}
             <div class="message-time">
-                ${time}
+                ${editedTag}${time}
                 ${statusIcon}
             </div>
         </div>
@@ -1321,15 +1469,17 @@ function addMessageToUI(content, sender, senderId, timestamp, messageId = null, 
         playNotificationSound();
         showBrowserNotification(
             `رسالة جديدة من ${sender}`,
-            content.substring(0, 50) + (content.length > 50 ? '...' : ''),
+            (content || '').substring(0, 50) + ((content || '').length > 50 ? '...' : ''),
             null
         );
         // تحديد الرسالة كمقروءة
-        markMessageAsRead(messageId);
+        if (messageId) {
+            markMessageAsRead(messageId);
+        }
     }
     
     // إذا كانت الرسالة مرسلة، تحديث حالتها إلى delivered بعد ثانية
-    if (isSent && messageStatus === 'sent') {
+    if (isSent && messageStatus === 'sent' && messageId) {
         setTimeout(() => {
             updateMessageStatus(messageId, 'delivered');
         }, 500);
@@ -1645,7 +1795,9 @@ async function sendMessageViaAPI(message, csrfTokenValue) {
                     'sent',
                     data.message_type || 'text',
                     data.file_url || null,
-                    data.file_name || null
+                    data.file_name || null,
+                    data.is_edited || false,
+                    data.edited_at || null
                 );
             } catch (uiError) {
                 console.error('Error adding message to UI:', uiError);
@@ -1789,7 +1941,9 @@ function startPolling() {
                                 messageStatus,
                                 msg.message_type || 'text',
                                 msg.file_url || null,
-                                msg.file_name || null
+                                msg.file_name || null,
+                                msg.is_edited || false,
+                                msg.edited_at || null
                             );
                             
                             // تحديث lastMessageId
@@ -1998,12 +2152,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const sendBtn = document.getElementById('sendBtn');
     const messageInput = document.getElementById('messageInput');
     
-    sendBtn.addEventListener('click', sendMessage);
+    sendBtn.addEventListener('click', handleSendButtonClick);
     
     messageInput.addEventListener('keypress', function(e) {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            sendMessage();
+            handleSendButtonClick();
         }
     });
     
@@ -2069,14 +2223,7 @@ async function deleteMessage(messageId) {
         });
         
         if (response.ok) {
-            const data = await response.json();
-            // إزالة الرسالة من الواجهة
-            const messageDiv = document.querySelector(`[data-message-id="${messageId}"]`);
-            if (messageDiv) {
-                messageDiv.style.opacity = '0.5';
-                messageDiv.querySelector('.message-bubble > div:first-child').textContent = '[تم حذف هذه الرسالة]';
-                messageDiv.querySelector('.delete-message-btn')?.remove();
-            }
+            markMessageAsDeleted(messageId);
         } else {
             const errorData = await response.json().catch(() => ({}));
             alert('خطأ في حذف الرسالة: ' + (errorData.error || 'خطأ غير معروف'));
@@ -2085,6 +2232,28 @@ async function deleteMessage(messageId) {
         console.error('Error deleting message:', error);
         alert('خطأ في الاتصال. يرجى المحاولة مرة أخرى.');
     }
+}
+
+function markMessageAsDeleted(messageId) {
+    const messageDiv = document.querySelector(`[data-message-id="${messageId}"]`);
+    if (!messageDiv) {
+        return;
+    }
+    const bubble = messageDiv.querySelector('.message-bubble');
+    const contentElement = bubble?.querySelector('.message-content');
+    if (contentElement) {
+        contentElement.textContent = '[تم حذف هذه الرسالة]';
+    } else if (bubble) {
+        const textElement = document.createElement('div');
+        textElement.className = 'message-content';
+        textElement.textContent = '[تم حذف هذه الرسالة]';
+        bubble.insertBefore(textElement, bubble.firstChild);
+    }
+    const editedTag = bubble?.querySelector('.message-edited-tag');
+    editedTag?.remove();
+    messageDiv.classList.add('message-deleted');
+    messageDiv.dataset.owner = '0';
+    messageDiv.dataset.messageType = 'text';
 }
 
 // Send File
@@ -2244,6 +2413,297 @@ if (typeof window.loadCallClient === 'function') {
 
     document.querySelectorAll('[data-call-type]').forEach(initCallButton);
 }
+
+function showMessageActionsModal(options = {}) {
+    const modal = document.getElementById('messageActionsModal');
+    const editBtn = document.getElementById('editMessageButton');
+    const deleteBtn = document.getElementById('deleteMessageButton');
+    if (!modal || !editBtn || !deleteBtn) {
+        return;
+    }
+    if (options.canEdit === false) {
+        editBtn.disabled = true;
+        editBtn.classList.add('disabled');
+    } else {
+        editBtn.disabled = false;
+        editBtn.classList.remove('disabled');
+    }
+    if (options.canDelete === false) {
+        deleteBtn.disabled = true;
+        deleteBtn.classList.add('disabled');
+    } else {
+        deleteBtn.disabled = false;
+        deleteBtn.classList.remove('disabled');
+    }
+    modal.classList.add('visible');
+}
+
+function hideMessageActionsModal() {
+    const modal = document.getElementById('messageActionsModal');
+    if (modal) {
+        modal.classList.remove('visible');
+    }
+    selectedMessageId = null;
+    selectedMessageElement = null;
+}
+
+let selectedMessageId = null;
+let selectedMessageElement = null;
+
+let editMode = {
+    active: false,
+    messageId: null,
+    originalContent: '',
+};
+
+function enterEditMode(messageId, messageText) {
+    editMode = {
+        active: true,
+        messageId,
+        originalContent: messageText,
+    };
+    const banner = document.getElementById('editModeBanner');
+    const bannerText = document.getElementById('editModeText');
+    if (banner && bannerText) {
+        bannerText.textContent = `تعديل الرسالة: ${messageText.slice(0, 120)}`;
+        banner.classList.add('visible');
+    }
+    const messageInput = document.getElementById('messageInput');
+    if (messageInput) {
+        messageInput.value = messageText;
+        messageInput.focus();
+        messageInput.setSelectionRange(messageText.length, messageText.length);
+    }
+}
+
+function exitEditMode() {
+    editMode = {
+        active: false,
+        messageId: null,
+        originalContent: '',
+    };
+    const banner = document.getElementById('editModeBanner');
+    if (banner) {
+        banner.classList.remove('visible');
+    }
+    const messageInput = document.getElementById('messageInput');
+    if (messageInput) {
+        messageInput.value = '';
+    }
+}
+
+async function submitEditedMessage() {
+    if (!editMode.active || !editMode.messageId) {
+        return false;
+    }
+    const messageInput = document.getElementById('messageInput');
+    if (!messageInput) {
+        return false;
+    }
+    const newContent = messageInput.value.trim();
+    if (!newContent) {
+        alert('لا يمكن ترك الرسالة فارغة بعد التعديل');
+        return true;
+    }
+    if (newContent === editMode.originalContent) {
+        exitEditMode();
+        return true;
+    }
+    try {
+        const response = await apiFetch(`messages/${editMode.messageId}/`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Token ${token}`,
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+            },
+            body: JSON.stringify({ content: newContent }),
+        });
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            alert('تعذر تعديل الرسالة: ' + (errorData.error || 'خطأ غير معروف'));
+            return true;
+        }
+        const data = await response.json();
+        updateMessageInUI(data.message);
+        exitEditMode();
+        return true;
+    } catch (error) {
+        console.error('Error editing message:', error);
+        alert('حدث خطأ في الاتصال عند تعديل الرسالة');
+        return true;
+    }
+}
+
+function updateMessageInUI(message) {
+    if (!message || !message.id) {
+        return;
+    }
+    const messageDiv = document.querySelector(`[data-message-id="${message.id}"]`);
+    if (!messageDiv) {
+        return;
+    }
+
+    if (typeof message.sender_id !== 'undefined') {
+        messageDiv.dataset.owner = message.sender_id === userId ? '1' : '0';
+    } else if (message.sender && typeof message.sender.id !== 'undefined') {
+        messageDiv.dataset.owner = message.sender.id === userId ? '1' : messageDiv.dataset.owner;
+    }
+
+    if (typeof message.message_type !== 'undefined') {
+        messageDiv.dataset.messageType = message.message_type || 'text';
+    }
+
+    const bubble = messageDiv.querySelector('.message-bubble');
+    if (!bubble) {
+        return;
+    }
+
+    if (typeof message.content !== 'undefined') {
+        let contentElement = bubble.querySelector('.message-content');
+        if (!contentElement) {
+            contentElement = document.createElement('div');
+            contentElement.className = 'message-content';
+            bubble.insertBefore(contentElement, bubble.firstChild);
+        }
+        contentElement.textContent = message.content;
+        if (message.content === '[تم حذف هذه الرسالة]') {
+            messageDiv.classList.add('message-deleted');
+            messageDiv.dataset.owner = '0';
+        } else {
+            messageDiv.classList.remove('message-deleted');
+        }
+    }
+
+    const edited = Boolean(message.is_edited) || Boolean(message.edited_at);
+    const timeElement = bubble.querySelector('.message-time');
+    if (timeElement) {
+        let editedTag = bubble.querySelector('.message-edited-tag');
+        if (edited && !editedTag) {
+            editedTag = document.createElement('span');
+            editedTag.className = 'message-edited-tag';
+            editedTag.textContent = 'تم التعديل';
+            timeElement.prepend(editedTag);
+        } else if (!edited && editedTag) {
+            editedTag.remove();
+        }
+        if (editedTag && message.edited_at) {
+            editedTag.title = new Date(message.edited_at).toLocaleString('ar-SA');
+        } else if (editedTag) {
+            editedTag.title = 'تم التعديل';
+        }
+    }
+}
+
+function onMessageClick(event) {
+    const target = event.target.closest('.message');
+    if (!target) {
+        return;
+    }
+    const isOwner = target.getAttribute('data-owner') === '1';
+    if (!isOwner) {
+        return;
+    }
+    const messageType = target.dataset.messageType || 'text';
+    const canEdit = messageType === 'text' && !target.classList.contains('message-deleted');
+    selectedMessageId = target.getAttribute('data-message-id');
+    selectedMessageElement = target;
+    showMessageActionsModal({ canEdit, canDelete: true });
+}
+
+function setupMessageActionsHandlers() {
+    const backdrop = document.getElementById('messageActionsBackdrop');
+    const cancelButton = document.getElementById('cancelActionsButton');
+    const editButton = document.getElementById('editMessageButton');
+    const deleteButton = document.getElementById('deleteMessageButton');
+    const cancelEditButton = document.getElementById('cancelEditButton');
+
+    backdrop?.addEventListener('click', hideMessageActionsModal);
+    cancelButton?.addEventListener('click', hideMessageActionsModal);
+
+    cancelEditButton?.addEventListener('click', () => {
+        exitEditMode();
+    });
+
+    editButton?.addEventListener('click', async () => {
+        if (editButton.disabled) {
+            return;
+        }
+        if (!selectedMessageId || !selectedMessageElement) {
+            return;
+        }
+        const contentElement = selectedMessageElement.querySelector('.message-content');
+        const messageText = contentElement ? contentElement.textContent : '';
+        hideMessageActionsModal();
+        if (!messageText) {
+            alert('تعذر قراءة نص الرسالة لتعديلها');
+            return;
+        }
+        enterEditMode(selectedMessageId, messageText);
+    });
+
+    deleteButton?.addEventListener('click', async () => {
+        if (deleteButton.disabled) {
+            return;
+        }
+        if (!selectedMessageId) {
+            return;
+        }
+        hideMessageActionsModal();
+        await deleteMessage(selectedMessageId);
+    });
+}
+
+function initializeMessageActions() {
+    const container = document.getElementById('messagesContainer');
+    if (container) {
+        container.addEventListener('contextmenu', (event) => {
+            event.preventDefault();
+            onMessageClick(event);
+        });
+        container.addEventListener('pointerdown', (event) => {
+            const target = event.target.closest('.message');
+            if (!target || target.getAttribute('data-owner') !== '1') {
+                return;
+            }
+            let pressTimer;
+            const start = () => {
+                pressTimer = window.setTimeout(() => {
+                    onMessageClick(event);
+                }, 550);
+            };
+            const cancel = () => {
+                window.clearTimeout(pressTimer);
+            };
+            start();
+            target.addEventListener('pointerup', cancel, { once: true });
+            target.addEventListener('pointerleave', cancel, { once: true });
+        });
+    }
+    setupMessageActionsHandlers();
+}
+
+document.addEventListener('DOMContentLoaded', initializeMessageActions);
+
+// override sendMessage to handle edit mode
+const originalSendMessage = sendMessage;
+function sendMessageOverride() {
+    if (editMode.active) {
+        submitEditedMessage();
+        return;
+    }
+    originalSendMessage();
+}
+sendMessage = sendMessageOverride;
+
+function handleSendButtonClick() {
+    if (editMode.active) {
+        submitEditedMessage();
+    } else {
+        sendMessage();
+    }
+}
+
 </script>
 {% endblock %}
 
