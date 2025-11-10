@@ -582,4 +582,84 @@ function showLoading() {
             <div class="spinner"></div>
             <p class="loading-message">جاري التحميل...</p>
         </div>
-    `
+    `;
+}
+
+// Show Error
+function showError(message) {
+    const usersList = document.getElementById('usersList');
+    usersList.innerHTML = `
+        <div class="empty-state">
+            <i class="fas fa-exclamation-triangle"></i>
+            <p>${message}</p>
+        </div>
+    `;
+}
+
+// Accept Friend Request
+function acceptRequest(requestId) {
+    apiFetch(`friend-requests/${requestId}/accept/`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Token ${token}`,
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(() => {
+        location.reload();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('حدث خطأ في قبول الطلب');
+    });
+}
+
+// Reject Friend Request
+function rejectRequest(requestId) {
+    apiFetch(`friend-requests/${requestId}/reject/`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Token ${token}`,
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(() => {
+        location.reload();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('حدث خطأ في رفض الطلب');
+    });
+}
+
+// Unblock User
+function unblockUser(userId) {
+    alert('ميزة إلغاء الحظر قيد التطوير');
+}
+
+// Get CSRF Token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Load users on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadAllUsers();
+});
+</script>
+{% endblock %}
