@@ -15,7 +15,7 @@ from django.conf import settings
 from django.http import FileResponse
 from .models import (
     UserProfile, ChatRoom, Message, MessageRead, SessionDevice,
-    CallSession, CallParticipant
+    CallSession, CallParticipant, BlockedUser
 )
 from .serializers import (
     UserSerializer, UserProfileSerializer, ChatRoomSerializer,
@@ -922,27 +922,29 @@ class CallSessionViewSet(viewsets.ModelViewSet):
         ).select_related('room', 'initiator').prefetch_related('participants__user').distinct()
 
     def perform_create(self, serializer):
+        room = serializer.validated_data.get('room')
+        request_user = self.request.user
+
+        if room is None or not room.members.filter(id=request_user.id).exists():
+            raise serializers.ValidationError({
+                'room': 'لا يمكنك بدء مكالمة في غرفة لست عضواً فيها.'
+            })
+
+        participant_ids = self._normalize_participant_ids(self.request.data.get('participants', []))
+        allowed_participants = self._validate_participants(room, request_user, participant_ids)
+
         call_session = serializer.save()
-        participants_ids = self.request.data.get('participants', [])
-        if isinstance(participants_ids, str):
-            participants_ids = [participants_ids]
 
-        participants_ids = set(int(uid) for uid in participants_ids if str(uid).isdigit())
-        participants_ids.discard(self.request.user.id)
-
-        if participants_ids:
-            users = User.objects.filter(id__in=participants_ids, is_active=True)
-            participants = []
-            for participant_user in users:
-                participant, _ = CallParticipant.objects.get_or_create(
-                    session=call_session,
-                    user=participant_user,
-                    defaults={
-                        'role': CallParticipant.Role.RECEIVER,
-                        'is_connected': False,
-                    }
-                )
-                participants.append(participant)
+        for participant_user in allowed_participants:
+            participant, _ = CallParticipant.objects.get_or_create(
+                session=call_session,
+                user=participant_user,
+                defaults={
+                    'role': CallParticipant.Role.RECEIVER,
+                    'is_connected': False,
+                }
+            )
+            if participant_user.id != request_user.id:
                 send_call_invite_task.delay(call_session.id, participant_user.id)
 
         call_session.activate()
@@ -953,20 +955,14 @@ class CallSessionViewSet(viewsets.ModelViewSet):
         if call_session.status not in (CallSession.Status.ACTIVE, CallSession.Status.PENDING):
             return Response({'error': 'لا يمكن دعوة مستخدمين بعد انتهاء المكالمة.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        participants_ids = request.data.get('participants', [])
-        if isinstance(participants_ids, str):
-            participants_ids = [participants_ids]
-
-        if not participants_ids:
-            return Response({'error': 'يرجى تحديد قائمة المشاركين'}, status=status.HTTP_400_BAD_REQUEST)
-
-        participants_ids = set(int(uid) for uid in participants_ids if str(uid).isdigit())
-        participants_ids.discard(request.user.id)
-        if not participants_ids:
+        participant_ids = self._normalize_participant_ids(request.data.get('participants', []))
+        if not participant_ids:
             return Response({'error': 'لا يوجد مشاركون صالحون'}, status=status.HTTP_400_BAD_REQUEST)
 
+        allowed_participants = self._validate_participants(call_session.room, request.user, participant_ids)
+
         invited = []
-        for participant_user in User.objects.filter(id__in=participants_ids, is_active=True):
+        for participant_user in allowed_participants:
             participant, created = CallParticipant.objects.get_or_create(
                 session=call_session,
                 user=participant_user,
@@ -1031,6 +1027,52 @@ class CallSessionViewSet(viewsets.ModelViewSet):
         call_session = self.get_object()
         serializer = self.get_serializer(call_session)
         return Response(serializer.data)
+
+    @staticmethod
+    def _normalize_participant_ids(raw_participants):
+        if raw_participants is None:
+            return set()
+        if isinstance(raw_participants, (str, int)):
+            raw_list = [raw_participants]
+        else:
+            raw_list = raw_participants
+
+        normalized = set()
+        for value in raw_list:
+            if isinstance(value, int):
+                normalized.add(value)
+            else:
+                str_value = str(value).strip()
+                if str_value.isdigit():
+                    normalized.add(int(str_value))
+        return normalized
+
+    def _validate_participants(self, room, request_user, participant_ids):
+        participant_ids = set(participant_ids or set())
+        participant_ids.discard(request_user.id)
+
+        if not participant_ids:
+            return []
+
+        room_member_ids = set(
+            room.members.filter(id__in=participant_ids).values_list('id', flat=True)
+        )
+        missing_ids = participant_ids - room_member_ids
+        if missing_ids:
+            raise serializers.ValidationError({
+                'participants': 'يمكن دعوة أعضاء الغرفة فقط.'
+            })
+
+        blocked_q = BlockedUser.objects.filter(
+            Q(user_id=request_user.id, blocked_user_id__in=participant_ids) |
+            Q(user_id__in=participant_ids, blocked_user_id=request_user.id)
+        )
+        if blocked_q.exists():
+            raise serializers.ValidationError({
+                'participants': 'لا يمكن دعوة مستخدمين يوجد بينهم حظر.'
+            })
+
+        return list(User.objects.filter(id__in=room_member_ids, is_active=True))
 
 
 def index_view(request):

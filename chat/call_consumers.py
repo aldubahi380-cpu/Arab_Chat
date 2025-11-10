@@ -4,9 +4,10 @@ from typing import Optional
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from django.contrib.auth.models import User
+from django.db.models import Q
 from django.utils import timezone
 
-from .models import ChatRoom, CallSession, CallParticipant
+from .models import ChatRoom, CallSession, CallParticipant, BlockedUser
 from .tasks import send_call_invite_task
 
 
@@ -182,7 +183,28 @@ class CallSignalingConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def _add_participants(self, session: CallSession, participant_ids) -> list[int]:
-        users = User.objects.filter(id__in=participant_ids, is_active=True)
+        if not participant_ids:
+            return []
+
+        room_member_ids = set(
+            session.room.members.filter(id__in=participant_ids).values_list('id', flat=True)
+        )
+        # استبعاد المرسل وأي مستخدم غير عضو في الغرفة
+        allowed_ids = [pid for pid in room_member_ids if pid != self.user.id]
+        if not allowed_ids:
+            return []
+
+        blocked_ids = set(
+            BlockedUser.objects.filter(
+                Q(user_id=self.user.id, blocked_user_id__in=allowed_ids) |
+                Q(user_id__in=allowed_ids, blocked_user_id=self.user.id)
+            ).values_list('blocked_user_id', flat=True)
+        )
+        allowed_ids = [pid for pid in allowed_ids if pid not in blocked_ids]
+        if not allowed_ids:
+            return []
+
+        users = User.objects.filter(id__in=allowed_ids, is_active=True)
         invited = []
         for participant_user in users:
             participant, _ = CallParticipant.objects.get_or_create(
