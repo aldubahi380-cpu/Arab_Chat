@@ -120,6 +120,8 @@
             --transition-fast: 0.15s ease;
             --transition-base: 0.2s ease;
             --transition-slow: 0.3s ease;
+            --chat-header-height: 68px;
+            --chat-input-height: 76px;
         }
 
         * {
@@ -655,8 +657,8 @@
         }
 
         body:has(.chat-room-page) {
-            --chat-header-height: 68px;
-            --chat-input-height: calc(92px + env(safe-area-inset-bottom));
+            --chat-header-height: calc(64px + env(safe-area-inset-top));
+            --chat-input-height: calc(76px + env(safe-area-inset-bottom));
         }
 
         /* Chat Window Panel */
@@ -724,7 +726,7 @@
                 border-top: 1px solid var(--whatsapp-gray);
                 box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
                 background: var(--whatsapp-white);
-                min-height: var(--chat-input-height);
+                height: var(--chat-input-height);
             }
         }
 
@@ -732,12 +734,16 @@
         .chat-window-header {
             background: var(--whatsapp-teal);
             color: var(--whatsapp-white);
-            padding: 10px 16px;
+            padding: 8px 16px;
+            padding-top: max(8px, env(safe-area-inset-top));
+            padding-bottom: 8px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             z-index: 10;
+            height: var(--chat-header-height);
+            box-sizing: border-box;
         }
 
         body:has(.chat-room-page) .chat-window-header {
@@ -892,10 +898,8 @@
             }
             
             .message-input-container {
-                padding: 8px 12px;
-                padding-bottom: max(8px, env(safe-area-inset-bottom)); /* دعم safe area في iOS */
-                background: var(--whatsapp-white);
-                border-top: 1px solid var(--whatsapp-gray);
+                padding: 12px 14px calc(12px + env(safe-area-inset-bottom)) 14px;
+                height: var(--chat-input-height);
             }
             
             .message-input-container input {
@@ -910,14 +914,13 @@
             
             /* تحسين messages container على الموبايل */
             .messages-container {
-                padding: 10px 12px;
-                padding-bottom: max(10px, env(safe-area-inset-bottom));
+                padding: 16px 12px;
             }
             
             /* تحسين header على الموبايل */
             .chat-window-header {
-                padding: 10px 12px;
-                padding-top: max(10px, env(safe-area-inset-top));
+                padding: 8px 12px;
+                padding-top: max(8px, env(safe-area-inset-top));
             }
             
             /* إخفاء navigation bar في صفحة الدردشة على الموبايل */
@@ -958,11 +961,13 @@
         /* Message Input */
         .message-input-container {
             background: var(--whatsapp-white);
-            padding: 8px 16px;
+            padding: 12px 16px;
             border-top: 1px solid var(--whatsapp-gray);
             display: flex;
             align-items: center;
             gap: 8px;
+            height: var(--chat-input-height);
+            box-sizing: border-box;
         }
 
         .message-input-container .input-group {
