@@ -212,12 +212,18 @@ class UserProfileViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(profile, data=request.data, partial=True)
             serializer.is_valid(raise_exception=True)
             avatar_file = request.FILES.get('avatar')
+            cover_file = request.FILES.get('cover_image')
             save_kwargs = {}
             if avatar_file:
                 try:
                     save_kwargs['avatar'] = self._compress_avatar(avatar_file)
                 except Exception as exc:
                     raise serializers.ValidationError({'avatar': f'تعذر ضغط الصورة: {exc}'})
+            if cover_file:
+                try:
+                    save_kwargs['cover_image'] = self._compress_cover(cover_file)
+                except Exception as exc:
+                    raise serializers.ValidationError({'cover_image': f'تعذر معالجة صورة الغلاف: {exc}'})
             serializer.save(**save_kwargs)
             return Response(serializer.data)
         serializer = self.get_serializer(profile)
@@ -225,22 +231,34 @@ class UserProfileViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         avatar_file = self.request.FILES.get('avatar')
+        cover_file = self.request.FILES.get('cover_image')
         save_kwargs = {}
         if avatar_file:
             try:
                 save_kwargs['avatar'] = self._compress_avatar(avatar_file)
             except Exception as exc:
                 raise serializers.ValidationError({'avatar': f'تعذر ضغط الصورة: {exc}'})
+        if cover_file:
+            try:
+                save_kwargs['cover_image'] = self._compress_cover(cover_file)
+            except Exception as exc:
+                raise serializers.ValidationError({'cover_image': f'تعذر معالجة صورة الغلاف: {exc}'})
         serializer.save(**save_kwargs)
 
     def perform_create(self, serializer):
         avatar_file = self.request.FILES.get('avatar')
+        cover_file = self.request.FILES.get('cover_image')
         save_kwargs = {'user': self.request.user}
         if avatar_file:
             try:
                 save_kwargs['avatar'] = self._compress_avatar(avatar_file)
             except Exception as exc:
                 raise serializers.ValidationError({'avatar': f'تعذر ضغط الصورة: {exc}'})
+        if cover_file:
+            try:
+                save_kwargs['cover_image'] = self._compress_cover(cover_file)
+            except Exception as exc:
+                raise serializers.ValidationError({'cover_image': f'تعذر معالجة صورة الغلاف: {exc}'})
         serializer.save(**save_kwargs)
 
     @staticmethod
@@ -255,6 +273,19 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         )
         compressed_avatar, _ = compress_image(avatar_file, config=avatar_config)
         return compressed_avatar
+
+    @staticmethod
+    def _compress_cover(cover_file):
+        cover_config = ImageCompressionConfig(
+            max_edge=min(IMAGE_CONFIG.max_edge * 2, 2048),
+            quality=min(IMAGE_CONFIG.quality + 4, 94),
+            min_quality=max(IMAGE_CONFIG.min_quality, 75),
+            target_max_kb=min(IMAGE_CONFIG.target_max_kb * 2, 900),
+            target_min_kb=IMAGE_CONFIG.target_min_kb,
+            allow_webp=True,
+        )
+        compressed_cover, _ = compress_image(cover_file, config=cover_config)
+        return compressed_cover
     
     @action(detail=True, methods=['post'])
     def set_online(self, request, pk=None):

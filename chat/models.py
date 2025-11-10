@@ -23,6 +23,7 @@ class UserProfile(models.Model):
         null=False,
     )
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True, verbose_name='الصورة الشخصية')
+    cover_image = models.ImageField(upload_to='covers/', blank=True, null=True, verbose_name='صورة الغلاف')
     bio = models.TextField(max_length=500, blank=True, null=True, verbose_name='نبذة عني')
     is_online = models.BooleanField(default=False, verbose_name='متصل')
     last_seen = models.DateTimeField(default=timezone.now, verbose_name='آخر ظهور')

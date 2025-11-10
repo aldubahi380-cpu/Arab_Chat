@@ -27,6 +27,7 @@ class UserSerializer(serializers.ModelSerializer):
             return {
                 'phone': profile.phone,
                 'avatar': profile.avatar.url if profile.avatar else None,
+                'cover_image': profile.cover_image.url if profile.cover_image else None,
                 'bio': profile.bio,
                 'is_online': profile.is_online,
                 'last_seen': profile.last_seen,
@@ -39,11 +40,22 @@ class UserProfileSerializer(serializers.ModelSerializer):
     """Serializer لملف المستخدم"""
     user = UserSerializer(read_only=True)
     username = serializers.CharField(source='user.username', read_only=True)
+    cover_image = serializers.ImageField(required=False, allow_null=True)
+    cover_image_url = serializers.SerializerMethodField()
     
     class Meta:
         model = UserProfile
-        fields = ['id', 'user', 'username', 'phone', 'avatar', 'bio', 'is_online', 'last_seen', 'created_at']
-        read_only_fields = ['id', 'created_at']
+        fields = ['id', 'user', 'username', 'phone', 'avatar', 'cover_image', 'cover_image_url', 'bio', 'is_online', 'last_seen', 'created_at']
+        read_only_fields = ['id', 'created_at', 'cover_image_url']
+
+    def get_cover_image_url(self, obj):
+        if obj.cover_image:
+            request = self.context.get('request')
+            url = obj.cover_image.url
+            if request:
+                return request.build_absolute_uri(url)
+            return url
+        return None
 
 
 class ChatRoomSerializer(serializers.ModelSerializer):

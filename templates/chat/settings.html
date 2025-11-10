@@ -88,6 +88,26 @@
         text-align: center;
     }
 
+    .profile-cover-preview {
+        width: 100%;
+        height: 200px;
+        border-radius: var(--radius-md);
+        background-size: cover;
+        background-position: center;
+        background-color: var(--whatsapp-light-gray);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 12px;
+        border: 1px dashed rgba(0,0,0,0.1);
+    }
+
+    .profile-cover-placeholder {
+        color: var(--whatsapp-dark-gray);
+        opacity: 0.7;
+        font-size: 14px;
+    }
+
     @media (max-width: 768px) {
         .settings-body {
             padding: 20px;
@@ -124,7 +144,19 @@
                 <!-- الحساب -->
                 <div id="account" class="tab-pane fade show active settings-section">
                     <h5>إعدادات الحساب</h5>
-                    <form>
+                    <form enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label class="form-label">صورة الغلاف</label>
+                            {% if profile and profile.cover_image %}
+                                <div class="profile-cover-preview" style="background-image: url('{{ profile.cover_image.url }}');"></div>
+                                <small class="form-text text-muted">الصورة الحالية سيتم استبدالها إذا قمت برفع صورة جديدة.</small>
+                            {% else %}
+                                <div class="profile-cover-preview">
+                                    <div class="profile-cover-placeholder">لا توجد صورة غلاف حالياً</div>
+                                </div>
+                            {% endif %}
+                            <input type="file" class="form-control" name="cover_image" accept="image/*">
+                        </div>
                         <div class="mb-3">
                             <label class="form-label">اسم المستخدم</label>
                             <input type="text" class="form-control" value="{{ user.username }}" readonly>
