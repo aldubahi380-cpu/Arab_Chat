@@ -12,7 +12,7 @@ from .web_views import (
     dashboard_view,
     private_chats_view, groups_view, search_view,
     stories_view, settings_view, chat_room_view, start_chat_view,
-    create_group_view, join_group_view, leave_group_view,
+    create_group_view, join_group_view, leave_group_view, join_group_by_code_view,
     otp_test_view, service_worker
 )
 from .auth_views import OTPVerificationViewSet
@@ -70,6 +70,7 @@ urlpatterns = [
     path('groups/create/', create_group_view, name='create_group'),
     path('groups/<int:room_id>/join/', join_group_view, name='join_group'),
     path('groups/<int:room_id>/leave/', leave_group_view, name='leave_group'),
+    path('groups/invite/<str:invite_code>/', join_group_by_code_view, name='join_group_by_code'),
     path('search/', search_view, name='search'),
     path('stories/', stories_view, name='stories'),
     path('settings/', settings_view, name='settings'),

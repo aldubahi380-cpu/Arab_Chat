@@ -13,6 +13,7 @@ from .models import ChatRoom, Message, Friend, FriendRequest, Story, Contact, Us
 from django.db.models import Q, Count, Max
 from django.conf import settings
 from django.contrib.staticfiles.storage import staticfiles_storage
+import json
 
 
 def is_ajax(request):
@@ -261,33 +262,67 @@ def groups_view(request):
     """واجهة المجموعات - عرض جميع المجموعات العامة"""
     user = request.user
     
-    # جميع المجموعات العامة (غير الخاصة)
-    all_groups = ChatRoom.objects.filter(is_private=False).annotate(
-        member_count=Count('members')
-    ).order_by('-created_at')
-    
-    # المجموعات التي المستخدم عضو فيها
-    my_groups = ChatRoom.objects.filter(
-        members=user,
-        is_private=False
+    communities_qs = ChatRoom.objects.filter(
+        room_type=ChatRoom.ROOM_TYPE_COMMUNITY
     ).annotate(
         member_count=Count('members')
+    ).order_by('-created_at')
+    my_communities_ids = set(
+        ChatRoom.objects.filter(
+            room_type=ChatRoom.ROOM_TYPE_COMMUNITY,
+            members=user
+        ).values_list('id', flat=True)
     )
-    
-    # إضافة علامة للمجموعات التي المستخدم عضو فيها
-    groups_with_status = []
-    my_group_ids = set(my_groups.values_list('id', flat=True))
-    
-    for group in all_groups:
-        groups_with_status.append({
-            'group': group,
-            'is_member': group.id in my_group_ids,
-            'member_count': group.member_count
+    communities = [
+        {
+            'room': community,
+            'member_count': community.member_count,
+            'is_member': community.id in my_communities_ids,
+        }
+        for community in communities_qs
+    ]
+
+    user_groups_qs = ChatRoom.objects.filter(
+        room_type=ChatRoom.ROOM_TYPE_GROUP,
+        members=user
+    ).annotate(
+        member_count=Count('members')
+    ).select_related('created_by').prefetch_related('members')
+
+    group_cards = []
+    for group in user_groups_qs:
+        group_cards.append({
+            'room': group,
+            'member_count': group.member_count,
+            'is_owner': group.created_by_id == user.id,
+            'invite_link': group.get_invite_link(request),
+            'invite_code': group.invite_code,
+            'member_usernames': list(group.members.exclude(id=user.id).values_list('username', flat=True)[:6]),
+            'member_ids': list(group.members.values_list('id', flat=True)),
         })
-    
+
+    friends = Friend.objects.filter(user=user).select_related('friend', 'friend__profile')
+    friend_options = [
+        {
+            'id': friend.friend.id,
+            'username': friend.friend.username,
+            'avatar': friend.friend.profile.avatar.url if hasattr(friend.friend, 'profile') and friend.friend.profile.avatar else None,
+        }
+        for friend in friends
+    ]
+
     context = {
-        'groups': groups_with_status,
-        'my_groups': my_groups
+        'communities': communities,
+        'group_cards': group_cards,
+        'friend_options': json.dumps(friend_options, ensure_ascii=False),
+        'group_cards_json': json.dumps([
+            {
+                'id': card['room'].id,
+                'member_ids': card['member_ids'],
+            }
+            for card in group_cards
+        ], ensure_ascii=False),
+        'has_groups': bool(group_cards),
     }
     return render_spa(request, 'chat/groups.html', context)
 
@@ -295,32 +330,49 @@ def groups_view(request):
 @login_required
 def create_group_view(request):
     """إنشاء مجموعة جديدة"""
+    friends = Friend.objects.filter(user=request.user).select_related('friend', 'friend__profile')
+    friend_options = [
+        {
+            'id': friend.friend.id,
+            'username': friend.friend.username,
+            'avatar': friend.friend.profile.avatar.url if hasattr(friend.friend, 'profile') and friend.friend.profile.avatar else None,
+        }
+        for friend in friends
+    ]
+
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
         description = request.POST.get('description', '').strip()
-        
+        member_ids = request.POST.getlist('members')
+
         if not name:
             return JsonResponse({'error': 'اسم المجموعة مطلوب'}, status=400)
-        
+
         # إنشاء المجموعة
         group = ChatRoom.objects.create(
             name=name,
             description=description,
-            is_private=False,
+            room_type=ChatRoom.ROOM_TYPE_GROUP,
             created_by=request.user
         )
         group.members.add(request.user)
-        
+        if member_ids:
+            users_to_add = User.objects.filter(id__in=member_ids).exclude(id=request.user.id)
+            group.members.add(*users_to_add)
+
         return redirect('chat_room', room_id=group.id)
-    
-    return render_spa(request, 'chat/create_group.html')
+
+    context = {
+        'friend_options': json.dumps(friend_options, ensure_ascii=False),
+    }
+    return render_spa(request, 'chat/create_group.html', context)
 
 
 @login_required
 def join_group_view(request, room_id):
     """الانضمام إلى مجموعة"""
     try:
-        room = ChatRoom.objects.get(id=room_id, is_private=False)
+        room = ChatRoom.objects.get(id=room_id, room_type=ChatRoom.ROOM_TYPE_COMMUNITY)
         
         if request.user not in room.members.all():
             room.members.add(request.user)
@@ -336,7 +388,7 @@ def join_group_view(request, room_id):
 def leave_group_view(request, room_id):
     """مغادرة مجموعة"""
     try:
-        room = ChatRoom.objects.get(id=room_id, is_private=False)
+        room = ChatRoom.objects.get(id=room_id, room_type=ChatRoom.ROOM_TYPE_COMMUNITY)
         
         if request.user in room.members.all():
             # لا يمكن للمنشئ مغادرة المجموعة إلا إذا كان آخر عضو
@@ -344,7 +396,7 @@ def leave_group_view(request, room_id):
                 room.delete()
                 return redirect('groups')
             elif room.created_by == request.user:
-                return JsonResponse({'error': 'لا يمكن للمنشئ مغادرة المجموعة. يجب تعيين منشئ جديد أولاً'}, status=400)
+                return JsonResponse({'error': 'لا يمكن للمنشئ مغادرة المجتمع. يجب تعيين منشئ جديد أولاً'}, status=400)
             else:
                 room.members.remove(request.user)
                 return redirect('groups')
@@ -513,4 +565,17 @@ def service_worker(request):
     response['Pragma'] = 'no-cache'
     response['Expires'] = '0'
     return response
+
+
+@login_required
+def join_group_by_code_view(request, invite_code):
+    """الانضمام إلى مجموعة خاصة باستخدام رمز الدعوة من خلال الواجهة"""
+    try:
+        room = ChatRoom.objects.get(invite_code=invite_code, room_type=ChatRoom.ROOM_TYPE_GROUP)
+    except ChatRoom.DoesNotExist:
+        return redirect('groups')
+
+    if request.user not in room.members.all():
+        room.members.add(request.user)
+    return redirect('chat_room', room_id=room.id)
 

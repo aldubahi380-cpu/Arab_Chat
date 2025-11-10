@@ -42,11 +42,19 @@ class UserProfile(models.Model):
 
 class ChatRoom(models.Model):
     """غرفة الدردشة"""
+    ROOM_TYPE_COMMUNITY = 'community'
+    ROOM_TYPE_GROUP = 'group'
+    ROOM_TYPE_CHOICES = [
+        (ROOM_TYPE_COMMUNITY, 'مجتمع'),
+        (ROOM_TYPE_GROUP, 'مجموعة'),
+    ]
     name = models.CharField(max_length=100, verbose_name='اسم الغرفة')
     description = models.TextField(blank=True, null=True, verbose_name='الوصف')
+    room_type = models.CharField(max_length=20, choices=ROOM_TYPE_CHOICES, default=ROOM_TYPE_COMMUNITY, verbose_name='نوع الغرفة')
     is_private = models.BooleanField(default=False, verbose_name='خاصة')
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_rooms', verbose_name='أنشأها')
     members = models.ManyToManyField(User, related_name='chat_rooms', verbose_name='الأعضاء')
+    invite_code = models.CharField(max_length=32, unique=True, blank=True, null=True, verbose_name='رمز الدعوة')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الإنشاء')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='تاريخ التحديث')
 
@@ -57,6 +65,32 @@ class ChatRoom(models.Model):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        if self.room_type == self.ROOM_TYPE_GROUP:
+            self.is_private = True
+            if not self.invite_code:
+                self.invite_code = self.generate_invite_code()
+        elif self.room_type == self.ROOM_TYPE_COMMUNITY:
+            self.is_private = False
+        super().save(*args, **kwargs)
+
+    def generate_invite_code(self):
+        """إنشاء رمز دعوة فريد"""
+        for _ in range(10):
+            candidate = secrets.token_urlsafe(8).replace('-', '').replace('_', '')[:10]
+            if not self.__class__.objects.filter(invite_code=candidate).exists():
+                return candidate
+        return secrets.token_hex(8)
+
+    def get_invite_link(self, request=None):
+        if not self.invite_code:
+            return None
+        from django.urls import reverse
+        path = reverse('join_group_by_code', kwargs={'invite_code': self.invite_code})
+        if request:
+            return request.build_absolute_uri(path)
+        return path
 
 
 class Message(models.Model):

@@ -42,7 +42,9 @@
     }
 
     .form-label {
-        display: block;
+        display: flex;
+        align-items: center;
+        gap: 8px;
         margin-bottom: 8px;
         font-weight: 600;
         color: #111;
@@ -77,6 +79,55 @@
         font-size: 13px;
         color: var(--whatsapp-dark-gray);
         margin-top: 6px;
+    }
+
+    .friends-picker {
+        border: 1px solid rgba(0,0,0,0.08);
+        border-radius: 12px;
+        padding: 12px;
+        max-height: 240px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        background: #f9fbfa;
+    }
+
+    .friend-option {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        transition: background 0.2s ease;
+    }
+
+    .friend-option:hover {
+        background: rgba(7,94,84,0.08);
+    }
+
+    .friend-option input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+    }
+
+    .friend-avatar {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        object-fit: cover;
+        background: rgba(0,0,0,0.05);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--whatsapp-teal);
+        font-weight: 600;
+    }
+
+    .friends-empty {
+        text-align: center;
+        padding: 16px;
+        color: rgba(0,0,0,0.55);
     }
 
     .form-actions {
@@ -154,7 +205,7 @@
                         required
                         maxlength="100"
                     >
-                    <div class="form-help">اسم المجموعة سيظهر لجميع المستخدمين</div>
+                    <div class="form-help">اختر اسماً واضحاً يعبر عن موضوع المجموعة (3-100 حرف).</div>
                 </div>
 
                 <div class="form-group">
@@ -168,7 +219,15 @@
                         placeholder="اكتب وصفاً للمجموعة..."
                         maxlength="500"
                     ></textarea>
-                    <div class="form-help">وصف مختصر عن المجموعة (حد أقصى 500 حرف)</div>
+                    <div class="form-help">قدم فكرة موجزة عن المجموعة لمساعدة الأعضاء على فهم الهدف.</div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label"><i class="fas fa-user-plus"></i> إضافة أعضاء (اختياري)</label>
+                    <div class="friends-picker" id="friendsPicker">
+                        <div class="friends-empty">جارٍ تحميل الأصدقاء...</div>
+                    </div>
+                    <div class="form-help">يمكنك إضافة المزيد من الأعضاء أو مشاركة رابط الدعوة بعد إنشاء المجموعة.</div>
                 </div>
 
                 <div class="form-actions">
@@ -185,6 +244,47 @@
 </div>
 
 <script>
+const friendOptions = JSON.parse('{{ friend_options|default:"[]"|safe }}');
+const picker = document.getElementById('friendsPicker');
+
+function renderFriendsPicker() {
+    if (!picker) return;
+    if (!friendOptions.length) {
+        picker.innerHTML = '<div class="friends-empty">لا يوجد أصدقاء متاحون حالياً. يمكنك دعوة الأصدقاء لاحقاً.</div>';
+        return;
+    }
+    picker.innerHTML = '';
+    friendOptions.forEach(friend => {
+        const label = document.createElement('label');
+        label.className = 'friend-option';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.name = 'members';
+        checkbox.value = friend.id;
+        const avatar = document.createElement('span');
+        avatar.className = 'friend-avatar';
+        if (friend.avatar) {
+            const img = document.createElement('img');
+            img.src = friend.avatar;
+            img.alt = friend.username;
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.borderRadius = '50%';
+            avatar.appendChild(img);
+        } else {
+            avatar.textContent = friend.username.charAt(0).toUpperCase();
+        }
+        const username = document.createElement('span');
+        username.textContent = friend.username;
+        label.appendChild(checkbox);
+        label.appendChild(avatar);
+        label.appendChild(username);
+        picker.appendChild(label);
+    });
+}
+
+renderFriendsPicker();
+
 document.getElementById('createGroupForm')?.addEventListener('submit', function(e) {
     const nameInput = document.getElementById('name');
     const name = nameInput.value.trim();

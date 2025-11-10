@@ -64,12 +64,15 @@ class ChatRoomSerializer(serializers.ModelSerializer):
     members = UserSerializer(many=True, read_only=True)
     member_count = serializers.SerializerMethodField()
     last_message = serializers.SerializerMethodField()
+    invite_link = serializers.SerializerMethodField()
+    is_owner = serializers.SerializerMethodField()
     
     class Meta:
         model = ChatRoom
-        fields = ['id', 'name', 'description', 'is_private', 'created_by', 'members', 
-                  'member_count', 'last_message', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        fields = ['id', 'name', 'description', 'room_type', 'is_private', 'invite_code', 'invite_link',
+                  'created_by', 'members', 'member_count', 'last_message', 'is_owner',
+                  'created_at', 'updated_at']
+        read_only_fields = ['id', 'is_private', 'invite_code', 'invite_link', 'is_owner', 'created_at', 'updated_at']
     
     def get_member_count(self, obj):
         return obj.members.count()
@@ -84,6 +87,16 @@ class ChatRoomSerializer(serializers.ModelSerializer):
                 'created_at': last_msg.created_at,
             }
         return None
+
+    def get_invite_link(self, obj):
+        request = self.context.get('request')
+        return obj.get_invite_link(request)
+
+    def get_is_owner(self, obj):
+        request = self.context.get('request')
+        if request and hasattr(request, 'user') and request.user.is_authenticated:
+            return obj.created_by_id == request.user.id
+        return False
 
 
 class MessageSerializer(serializers.ModelSerializer):

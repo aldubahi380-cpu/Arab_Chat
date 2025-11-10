@@ -319,21 +319,24 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         # غرف المستخدم (خاصة وعامة)
         user_rooms = ChatRoom.objects.filter(members=user).distinct()
         
-        # المجموعات العامة (للعرض فقط)
-        public_groups = ChatRoom.objects.filter(is_private=False).distinct()
+        # المجتمعات العامة (للعرض فقط)
+        public_groups = ChatRoom.objects.filter(room_type=ChatRoom.ROOM_TYPE_COMMUNITY).distinct()
         
         # دمج النتائج
         return (user_rooms | public_groups).distinct()
     
     def perform_create(self, serializer):
         """إنشاء غرفة جديدة"""
-        room = serializer.save(created_by=self.request.user)
+        room_type = serializer.validated_data.get('room_type', ChatRoom.ROOM_TYPE_COMMUNITY)
+        room = serializer.save(created_by=self.request.user, room_type=room_type)
         room.members.add(self.request.user)
     
     @action(detail=True, methods=['post'])
     def add_member(self, request, pk=None):
         """إضافة عضو إلى الغرفة"""
         room = self.get_object()
+        if room.created_by != request.user:
+            return Response({'error': 'فقط المنشئ يمكنه إضافة الأعضاء'}, status=status.HTTP_403_FORBIDDEN)
         user_id = request.data.get('user_id')
         if user_id:
             try:
@@ -343,11 +346,33 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
             except User.DoesNotExist:
                 return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
         return Response({'error': 'user_id is required'}, status=status.HTTP_400_BAD_REQUEST)
-    
+
+    @action(detail=True, methods=['post'])
+    def add_members(self, request, pk=None):
+        """إضافة عدة أعضاء دفعة واحدة (للمجموعات)"""
+        room = self.get_object()
+        if room.created_by != request.user:
+            return Response({'error': 'فقط المنشئ يمكنه إدارة الأعضاء'}, status=status.HTTP_403_FORBIDDEN)
+        user_ids = request.data.get('user_ids') or []
+        if isinstance(user_ids, str):
+            user_ids = [uid for uid in user_ids.split(',') if uid]
+        added = []
+        errors = []
+        for uid in user_ids:
+            try:
+                user = User.objects.get(id=uid)
+                room.members.add(user)
+                added.append(user.id)
+            except User.DoesNotExist:
+                errors.append(uid)
+        return Response({'added': added, 'errors': errors})
+
     @action(detail=True, methods=['post'])
     def remove_member(self, request, pk=None):
         """إزالة عضو من الغرفة"""
         room = self.get_object()
+        if room.created_by != request.user:
+            return Response({'error': 'فقط المنشئ يمكنه إزالة الأعضاء'}, status=status.HTTP_403_FORBIDDEN)
         user_id = request.data.get('user_id')
         if user_id:
             try:
@@ -358,6 +383,17 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
                 return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
         return Response({'error': 'user_id is required'}, status=status.HTTP_400_BAD_REQUEST)
     
+    @action(detail=True, methods=['post'])
+    def regenerate_invite(self, request, pk=None):
+        """إعادة توليد رابط الدعوة"""
+        room = self.get_object()
+        if room.created_by != request.user or room.room_type != ChatRoom.ROOM_TYPE_GROUP:
+            return Response({'error': 'لا تملك صلاحية هذا الإجراء'}, status=status.HTTP_403_FORBIDDEN)
+        room.invite_code = None
+        room.save(update_fields=['invite_code', 'is_private', 'updated_at'])
+        serializer = self.get_serializer(room)
+        return Response({'invite_code': room.invite_code, 'invite_link': serializer.data.get('invite_link')})
+
     @action(detail=False, methods=['get'])
     def my_rooms(self, request):
         """الحصول على غرف المستخدم"""
@@ -424,7 +460,7 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def public_groups(self, request):
         """الحصول على جميع المجموعات العامة"""
-        groups = ChatRoom.objects.filter(is_private=False).annotate(
+        groups = ChatRoom.objects.filter(room_type=ChatRoom.ROOM_TYPE_COMMUNITY).annotate(
             member_count=Count('members')
         ).order_by('-created_at')
         serializer = self.get_serializer(groups, many=True)
@@ -432,14 +468,14 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def join(self, request, pk=None):
-        """الانضمام إلى مجموعة عامة"""
+        """الانضمام إلى مجتمع عام"""
         room = self.get_object()
         
-        if room.is_private:
-            return Response({'error': 'لا يمكن الانضمام إلى محادثة خاصة'}, status=status.HTTP_400_BAD_REQUEST)
+        if room.room_type != ChatRoom.ROOM_TYPE_COMMUNITY:
+            return Response({'error': 'الانضمام المباشر متاح للمجتمعات العامة فقط'}, status=status.HTTP_400_BAD_REQUEST)
         
         if request.user in room.members.all():
-            return Response({'status': 'already_member', 'message': 'أنت عضو بالفعل في هذه المجموعة'})
+            return Response({'status': 'already_member', 'message': 'أنت عضو بالفعل في هذا المجتمع'})
         
         room.members.add(request.user)
         serializer = self.get_serializer(room)
@@ -447,24 +483,41 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def leave(self, request, pk=None):
-        """مغادرة مجموعة"""
+        """مغادرة مجتمع عام"""
         room = self.get_object()
         
-        if room.is_private:
-            return Response({'error': 'لا يمكن مغادرة محادثة خاصة'}, status=status.HTTP_400_BAD_REQUEST)
-        
+        if room.room_type != ChatRoom.ROOM_TYPE_COMMUNITY:
+            return Response({'error': 'لا يمكن مغادرة المجموعة عبر هذا المسار'}, status=status.HTTP_400_BAD_REQUEST)
+ 
         if request.user not in room.members.all():
-            return Response({'error': 'أنت لست عضواً في هذه المجموعة'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'أنت لست عضواً في هذا المجتمع'}, status=status.HTTP_400_BAD_REQUEST)
         
         # لا يمكن للمنشئ مغادرة المجموعة إلا إذا كان آخر عضو
         if room.created_by == request.user and room.members.count() == 1:
             room.delete()
             return Response({'status': 'deleted', 'message': 'تم حذف المجموعة'})
         elif room.created_by == request.user:
-            return Response({'error': 'لا يمكن للمنشئ مغادرة المجموعة. يجب تعيين منشئ جديد أولاً'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'لا يمكن للمنشئ مغادرة المجتمع. يجب تعيين منشئ جديد أولاً'}, status=status.HTTP_400_BAD_REQUEST)
         
         room.members.remove(request.user)
         return Response({'status': 'left', 'message': 'تم مغادرة المجموعة'})
+
+    @action(detail=False, methods=['post'])
+    def join_by_code(self, request):
+        """الانضمام إلى مجموعة عبر رمز الدعوة"""
+        code = (request.data.get('invite_code') or '').strip()
+        if not code:
+            return Response({'error': 'رمز الدعوة مطلوب'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            room = ChatRoom.objects.get(invite_code=code, room_type=ChatRoom.ROOM_TYPE_GROUP)
+        except ChatRoom.DoesNotExist:
+            return Response({'error': 'رمز الدعوة غير صالح أو المجموعة غير متاحة'}, status=status.HTTP_404_NOT_FOUND)
+        if request.user in room.members.all():
+            serializer = self.get_serializer(room)
+            return Response({'status': 'already_member', 'room': serializer.data})
+        room.members.add(request.user)
+        serializer = self.get_serializer(room)
+        return Response({'status': 'joined', 'room': serializer.data})
 
 
 class MessageViewSet(viewsets.ModelViewSet):
