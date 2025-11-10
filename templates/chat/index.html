@@ -2,46 +2,121 @@
 
 {% block title %}عرب شات - الرئيسية{% endblock %}
 
+{% block extra_css %}
+<style>
+    .landing-page {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .landing-card {
+        background: var(--whatsapp-white);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+        padding: 32px;
+    }
+
+    .landing-header {
+        text-align: center;
+        margin-bottom: 24px;
+    }
+
+    .landing-header h2 {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--whatsapp-teal);
+        margin-bottom: 12px;
+    }
+
+    .landing-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px;
+    }
+
+    .landing-tile {
+        background: var(--whatsapp-white);
+        border: 1px solid var(--whatsapp-gray);
+        border-radius: var(--radius-md);
+        padding: 20px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+        transition: transform var(--transition-base), box-shadow var(--transition-base);
+    }
+
+    .landing-tile:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 24px rgba(0,0,0,0.12);
+    }
+
+    .landing-tile h5 {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--whatsapp-teal);
+        margin-bottom: 12px;
+    }
+
+    .landing-info {
+        margin-top: 24px;
+        background: rgba(7, 94, 84, 0.08);
+        border-radius: var(--radius-md);
+        padding: 20px;
+    }
+
+    .landing-info h5 {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--whatsapp-teal);
+        margin-bottom: 12px;
+    }
+
+    .landing-info ul {
+        margin: 0;
+        padding-right: 18px;
+        color: var(--whatsapp-dark-gray);
+    }
+
+    @media (max-width: 768px) {
+        .landing-card {
+            padding: 24px;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="row">
-    <div class="col-md-12">
-        <div class="chat-container">
-            <div class="chat-header text-center">
-                <h2><i class="fas fa-comments"></i> مرحباً بك في عرب شات</h2>
-                <p>تطبيق الدردشة العربي المتكامل</p>
+<div class="page-shell landing-page">
+    <div class="landing-card">
+        <div class="landing-header">
+            <h2><i class="fas fa-comments"></i> مرحباً بك في عرب شات</h2>
+            <p>تطبيق الدردشة العربي المتكامل</p>
+        </div>
+
+        <div class="landing-grid">
+            <div class="landing-tile">
+                <h5><i class="fas fa-mobile-alt"></i> تطبيق Android</h5>
+                <p>قم بتنزيل تطبيق Android للدردشة على الهاتف المحمول، وابقَ على اتصال مع أصدقائك أينما كنت.</p>
+                <a href="#" class="btn btn-primary">تحميل التطبيق</a>
             </div>
-            <div class="p-4">
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <div class="card">
-                            <div class="card-body">
-                                <h5 class="card-title"><i class="fas fa-mobile-alt"></i> تطبيق Android</h5>
-                                <p class="card-text">قم بتنزيل تطبيق Android للدردشة على الهاتف المحمول</p>
-                                <a href="#" class="btn btn-primary">تحميل التطبيق</a>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <div class="card">
-                            <div class="card-body">
-                                <h5 class="card-title"><i class="fas fa-globe"></i> واجهة الويب</h5>
-                                <p class="card-text">استخدم واجهة الويب للدردشة من المتصفح</p>
-                                <a href="/chat/" class="btn btn-primary">ابدأ الدردشة</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="alert alert-info mt-4">
-                    <h5><i class="fas fa-info-circle"></i> معلومات المشروع</h5>
-                    <ul>
-                        <li><strong>Backend:</strong> Django</li>
-                        <li><strong>Frontend:</strong> Android + Web</li>
-                        <li><strong>Database:</strong> SQLite (التطوير) / MySQL (الإنتاج)</li>
-                        <li><strong>API:</strong> REST API للاتصال مع Android</li>
-                        <li><strong>Real-time:</strong> WebSocket للدردشة المباشرة</li>
-                    </ul>
-                </div>
+            <div class="landing-tile">
+                <h5><i class="fas fa-globe"></i> واجهة الويب</h5>
+                <p>استخدم واجهة الويب للدردشة مباشرة من المتصفح واستمتع بتجربة متكاملة على سطح المكتب.</p>
+                <a href="/chat/" class="btn btn-primary">ابدأ الدردشة</a>
             </div>
+        </div>
+
+        <div class="landing-info">
+            <h5><i class="fas fa-info-circle"></i> معلومات المشروع</h5>
+            <ul>
+                <li><strong>Backend:</strong> Django</li>
+                <li><strong>Frontend:</strong> Android + Web</li>
+                <li><strong>Database:</strong> SQLite (التطوير) / MySQL (الإنتاج)</li>
+                <li><strong>API:</strong> REST API للاتصال مع Android</li>
+                <li><strong>Real-time:</strong> WebSocket للدردشة المباشرة</li>
+            </ul>
         </div>
     </div>
 </div>

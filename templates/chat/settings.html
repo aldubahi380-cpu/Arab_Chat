@@ -2,120 +2,214 @@
 
 {% block title %}الإعدادات - عرب شات{% endblock %}
 
+{% block extra_css %}
+<style>
+    .settings-page {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .settings-card {
+        background: var(--whatsapp-white);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+        overflow: hidden;
+    }
+
+    .settings-header {
+        background: var(--whatsapp-teal);
+        color: var(--whatsapp-white);
+        padding: 24px;
+    }
+
+    .settings-header h4 {
+        margin: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 600;
+    }
+
+    .settings-body {
+        padding: 24px;
+    }
+
+    .settings-tabs {
+        border-bottom: 1px solid var(--whatsapp-gray);
+    }
+
+    .settings-tabs .nav-link {
+        color: var(--whatsapp-dark-gray);
+        font-weight: 500;
+        border: none;
+        border-bottom: 3px solid transparent;
+        padding: 12px 16px;
+        margin-right: 8px;
+        border-radius: 0;
+    }
+
+    .settings-tabs .nav-link.active {
+        color: var(--whatsapp-teal);
+        border-bottom-color: var(--whatsapp-teal);
+        background: transparent;
+    }
+
+    .settings-tabs .nav-link:hover {
+        background: var(--whatsapp-hover);
+    }
+
+    .settings-section h5 {
+        font-weight: 600;
+        color: var(--whatsapp-teal);
+        margin-bottom: 16px;
+    }
+
+    .settings-actions {
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 1px solid var(--whatsapp-gray);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .settings-actions .btn {
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        border-radius: 10px;
+        padding: 12px;
+    }
+
+    .settings-actions small {
+        text-align: center;
+    }
+
+    @media (max-width: 768px) {
+        .settings-body {
+            padding: 20px;
+        }
+
+        .settings-tabs .nav-link {
+            margin-right: 4px;
+            padding-inline: 12px;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid mt-4">
-    <div class="row">
-        <div class="col-md-8 offset-md-2">
-            <div class="card">
-                <div class="card-header">
-                    <h4><i class="fas fa-cog"></i> الإعدادات</h4>
+<div class="page-shell page-shell--flush settings-page">
+    <div class="settings-card">
+        <div class="settings-header">
+            <h4><i class="fas fa-cog"></i> الإعدادات</h4>
+        </div>
+        <div class="settings-body">
+            <ul class="nav nav-tabs settings-tabs" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link active" data-bs-toggle="tab" href="#account">الحساب</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#privacy">الخصوصية</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#notifications">الإشعارات</a>
+                </li>
+            </ul>
+
+            <div class="tab-content mt-3">
+                <!-- الحساب -->
+                <div id="account" class="tab-pane fade show active settings-section">
+                    <h5>إعدادات الحساب</h5>
+                    <form>
+                        <div class="mb-3">
+                            <label class="form-label">اسم المستخدم</label>
+                            <input type="text" class="form-control" value="{{ user.username }}" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">البريد الإلكتروني</label>
+                            <input type="email" class="form-control" value="{{ user.email }}">
+                        </div>
+                        {% if profile %}
+                            <div class="mb-3">
+                                <label class="form-label">رقم الهاتف</label>
+                                <input type="tel" class="form-control" value="{{ profile.phone }}" readonly>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">نبذة عني</label>
+                                <textarea class="form-control" rows="3">{{ profile.bio }}</textarea>
+                            </div>
+                        {% endif %}
+                        <button type="submit" class="btn btn-primary">حفظ التغييرات</button>
+                    </form>
                 </div>
-                <div class="card-body">
-                    <ul class="nav nav-tabs" role="tablist">
-                        <li class="nav-item">
-                            <a class="nav-link active" data-bs-toggle="tab" href="#account">الحساب</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" data-bs-toggle="tab" href="#privacy">الخصوصية</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" data-bs-toggle="tab" href="#notifications">الإشعارات</a>
-                        </li>
-                    </ul>
-                    
-                    <div class="tab-content mt-3">
-                        <!-- الحساب -->
-                        <div id="account" class="tab-pane fade show active">
-                            <h5>إعدادات الحساب</h5>
-                            <form>
-                                <div class="mb-3">
-                                    <label class="form-label">اسم المستخدم</label>
-                                    <input type="text" class="form-control" value="{{ user.username }}" readonly>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">البريد الإلكتروني</label>
-                                    <input type="email" class="form-control" value="{{ user.email }}">
-                                </div>
-                                {% if profile %}
-                                    <div class="mb-3">
-                                        <label class="form-label">رقم الهاتف</label>
-                                        <input type="tel" class="form-control" value="{{ profile.phone }}" readonly>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">نبذة عني</label>
-                                        <textarea class="form-control" rows="3">{{ profile.bio }}</textarea>
-                                    </div>
-                                {% endif %}
-                                <button type="submit" class="btn btn-primary">حفظ التغييرات</button>
-                            </form>
-                        </div>
-                        
-                        <!-- الخصوصية -->
-                        <div id="privacy" class="tab-pane fade">
-                            <h5>إعدادات الخصوصية</h5>
-                            <div class="form-check mb-3">
-                                <input class="form-check-input" type="checkbox" id="showOnline">
-                                <label class="form-check-label" for="showOnline">
-                                    إظهار حالة الاتصال
-                                </label>
-                            </div>
-                            <div class="form-check mb-3">
-                                <input class="form-check-input" type="checkbox" id="showLastSeen">
-                                <label class="form-check-label" for="showLastSeen">
-                                    إظهار آخر ظهور
-                                </label>
-                            </div>
-                            <div class="form-check mb-3">
-                                <input class="form-check-input" type="checkbox" id="allowFriendRequests">
-                                <label class="form-check-label" for="allowFriendRequests">
-                                    السماح بطلبات الصداقة
-                                </label>
-                            </div>
-                        </div>
-                        
-                        <!-- الإشعارات -->
-                        <div id="notifications" class="tab-pane fade">
-                            <h5>إعدادات الإشعارات</h5>
-                            <div class="form-check mb-3">
-                                <input class="form-check-input" type="checkbox" id="messageNotifications" checked>
-                                <label class="form-check-label" for="messageNotifications">
-                                    إشعارات الرسائل
-                                </label>
-                            </div>
-                            <div class="form-check mb-3">
-                                <input class="form-check-input" type="checkbox" id="friendRequestNotifications" checked>
-                                <label class="form-check-label" for="friendRequestNotifications">
-                                    إشعارات طلبات الصداقة
-                                </label>
-                            </div>
-                            <div class="form-check mb-3">
-                                <input class="form-check-input" type="checkbox" id="notificationSound" checked>
-                                <label class="form-check-label" for="notificationSound">
-                                    تشغيل نغمة التنبيه
-                                </label>
-                            </div>
-                            <div class="form-check mb-3">
-                                <input class="form-check-input" type="checkbox" id="notificationVibration" checked>
-                                <label class="form-check-label" for="notificationVibration">
-                                    الاهتزاز عند استقبال الإشعارات
-                                </label>
-                            </div>
-                        </div>
+
+                <!-- الخصوصية -->
+                <div id="privacy" class="tab-pane fade settings-section">
+                    <h5>إعدادات الخصوصية</h5>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="showOnline">
+                        <label class="form-check-label" for="showOnline">
+                            إظهار حالة الاتصال
+                        </label>
                     </div>
-                    
-                    <hr>
-                    <div class="d-grid gap-2">
-                        <button id="logoutButton" class="btn btn-warning" onclick="logoutDevice(this)" style="font-weight: 600;">
-                            <i class="fas fa-sign-out-alt"></i> تسجيل الخروج من هذا الجهاز
-                        </button>
-                        <button class="btn btn-danger" onclick="deleteAccount(this)" style="font-weight: 600;">
-                            <i class="fas fa-trash-alt"></i> حذف الحساب نهائياً
-                        </button>
-                        <small class="text-muted text-center mt-2">
-                            ⚠️ تسجيل الخروج سيعطّل جلسة هذا الجهاز فقط، بينما حذف الحساب سيزيل جميع بياناتك بشكل نهائي.
-                        </small>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="showLastSeen">
+                        <label class="form-check-label" for="showLastSeen">
+                            إظهار آخر ظهور
+                        </label>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="allowFriendRequests">
+                        <label class="form-check-label" for="allowFriendRequests">
+                            السماح بطلبات الصداقة
+                        </label>
                     </div>
                 </div>
+
+                <!-- الإشعارات -->
+                <div id="notifications" class="tab-pane fade settings-section">
+                    <h5>إعدادات الإشعارات</h5>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="messageNotifications" checked>
+                        <label class="form-check-label" for="messageNotifications">
+                            إشعارات الرسائل
+                        </label>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="friendRequestNotifications" checked>
+                        <label class="form-check-label" for="friendRequestNotifications">
+                            إشعارات طلبات الصداقة
+                        </label>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="notificationSound" checked>
+                        <label class="form-check-label" for="notificationSound">
+                            تشغيل نغمة التنبيه
+                        </label>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="notificationVibration" checked>
+                        <label class="form-check-label" for="notificationVibration">
+                            الاهتزاز عند استقبال الإشعارات
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-actions">
+                <button id="logoutButton" class="btn btn-warning" onclick="logoutDevice(this)">
+                    <i class="fas fa-sign-out-alt"></i> تسجيل الخروج من هذا الجهاز
+                </button>
+                <button class="btn btn-danger" onclick="deleteAccount(this)">
+                    <i class="fas fa-trash-alt"></i> حذف الحساب نهائياً
+                </button>
+                <small class="text-muted">
+                    ⚠️ تسجيل الخروج سيعطّل جلسة هذا الجهاز فقط، بينما حذف الحساب سيزيل جميع بياناتك بشكل نهائي.
+                </small>
             </div>
         </div>
     </div>

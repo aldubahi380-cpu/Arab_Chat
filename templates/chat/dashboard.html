@@ -4,57 +4,82 @@
 
 {% block extra_css %}
 <style>
-    .dashboard-container {
-        max-width: 1200px;
-        margin: 40px auto;
-        padding: 20px;
+    .dashboard-page {
         text-align: center;
     }
-    
-    .dashboard-welcome {
+
+    .dashboard-card {
         background: var(--whatsapp-white);
-        border-radius: 20px;
-        padding: 60px 40px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+        padding: 56px 48px;
     }
-    
-    .dashboard-welcome h1 {
+
+    .dashboard-icon {
+        font-size: 48px;
         color: var(--whatsapp-teal);
-        font-size: 36px;
-        margin-bottom: 20px;
+        margin-bottom: 16px;
+    }
+
+    .dashboard-title {
+        color: var(--whatsapp-teal);
+        font-size: 34px;
+        margin-bottom: 18px;
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 15px;
+        gap: 12px;
     }
-    
-    .dashboard-welcome p {
+
+    .dashboard-text {
         color: var(--whatsapp-dark-gray);
         font-size: 18px;
         line-height: 1.6;
-        margin-top: 20px;
+        margin-top: 18px;
     }
-    
-    .dashboard-welcome i {
-        font-size: 48px;
+
+    .dashboard-links {
+        margin-top: 16px;
+        color: var(--whatsapp-dark-gray);
+        font-size: 16px;
+        opacity: 0.85;
+    }
+
+    .dashboard-highlight {
         color: var(--whatsapp-teal);
+        font-weight: 600;
     }
-    
+
+    .dashboard-dev-tools {
+        margin-top: 36px;
+        padding-top: 24px;
+        border-top: 2px dashed #ddd;
+    }
+
+    .dashboard-dev-title {
+        color: var(--whatsapp-teal);
+        margin-bottom: 16px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .dashboard-dev-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
     @media (max-width: 768px) {
-        .dashboard-container {
-            margin: 20px auto;
-            padding: 10px;
+        .dashboard-card {
+            padding: 40px 24px;
         }
-        
-        .dashboard-welcome {
-            padding: 40px 20px;
-        }
-        
-        .dashboard-welcome h1 {
+
+        .dashboard-title {
             font-size: 28px;
         }
-        
-        .dashboard-welcome p {
+
+        .dashboard-text {
             font-size: 16px;
         }
     }
@@ -62,25 +87,23 @@
 {% endblock %}
 
 {% block content %}
-<div class="dashboard-container">
-    <div class="dashboard-welcome">
-        <i class="fas fa-comments"></i>
-        <h1>مرحباً بك في عرب شات</h1>
-        <p>استخدم القائمة العلوية للتنقل بين الأقسام</p>
-        <p style="margin-top: 10px; opacity: 0.8; font-size: 16px;">
-            <i class="fas fa-comments"></i> الدردشات الخاصة | 
-            <i class="fas fa-users"></i> المجموعات | 
-            <i class="fas fa-circle"></i> الاستوريات | 
-            <i class="fas fa-search"></i> البحث | 
-            <i class="fas fa-cog"></i> الإعدادات
+<div class="page-shell dashboard-page">
+    <div class="dashboard-card">
+        <div class="dashboard-icon"><i class="fas fa-comments"></i></div>
+        <h1 class="dashboard-title">مرحباً بك في عرب شات</h1>
+        <p class="dashboard-text">استخدم القائمة للتنقل بين الأقسام والوصول إلى محادثاتك بسرعة.</p>
+        <p class="dashboard-links">
+            <span class="dashboard-highlight"><i class="fas fa-comments"></i> الدردشات الخاصة</span> |
+            <span class="dashboard-highlight"><i class="fas fa-users"></i> المجموعات</span> |
+            <span class="dashboard-highlight"><i class="fas fa-circle"></i> الاستوريات</span> |
+            <span class="dashboard-highlight"><i class="fas fa-search"></i> البحث</span> |
+            <span class="dashboard-highlight"><i class="fas fa-cog"></i> الإعدادات</span>
         </p>
-        
+
         {% if request.user.is_superuser or request.user.is_staff %}
-        <div style="margin-top: 30px; padding-top: 20px; border-top: 2px dashed #ddd;">
-            <h5 style="color: var(--whatsapp-teal); margin-bottom: 15px;">
-                <i class="fas fa-tools"></i> أدوات التطوير
-            </h5>
-            <a href="{% url 'otp_test' %}" class="btn btn-info btn-lg" style="margin: 5px;">
+        <div class="dashboard-dev-tools">
+            <h5 class="dashboard-dev-title"><i class="fas fa-tools"></i> أدوات التطوير</h5>
+            <a href="{% url 'otp_test' %}" class="btn btn-info dashboard-dev-link">
                 <i class="fas fa-key"></i> اختبار OTP
             </a>
         </div>

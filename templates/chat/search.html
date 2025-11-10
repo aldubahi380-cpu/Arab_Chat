@@ -4,32 +4,44 @@
 
 {% block extra_css %}
 <style>
-    .search-page-container {
-        max-width: 800px;
-        margin: 0 auto;
-        padding: 20px;
+    .search-page {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .search-card {
         background: var(--whatsapp-white);
-        min-height: 100vh;
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-lg);
+        display: flex;
+        flex-direction: column;
     }
 
     .search-header {
         background: var(--whatsapp-teal);
         color: var(--whatsapp-white);
-        padding: 20px;
-        border-radius: 12px 12px 0 0;
-        margin-bottom: 0;
+        padding: 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
     }
 
-    .search-header h2 {
+    .search-title {
         margin: 0;
         font-size: 24px;
-        font-weight: 500;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
     }
 
     .search-box-container {
-        padding: 20px;
-        background: var(--whatsapp-white);
+        padding: 20px 24px;
         border-bottom: 1px solid var(--whatsapp-gray);
+        background: var(--whatsapp-white);
     }
 
     .search-input-wrapper {
@@ -60,16 +72,56 @@
         pointer-events: none;
     }
 
+    .tabs-container {
+        background: var(--whatsapp-white);
+        border-bottom: 1px solid var(--whatsapp-gray);
+        padding: 0 24px;
+    }
+
+    .tabs {
+        display: flex;
+    }
+
+    .tab {
+        padding: 15px 20px;
+        background: none;
+        border: none;
+        border-bottom: 3px solid transparent;
+        color: var(--whatsapp-dark-gray);
+        font-size: 15px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .tab.active {
+        color: var(--whatsapp-teal);
+        border-bottom-color: var(--whatsapp-teal);
+    }
+
+    .tab:hover {
+        background: var(--whatsapp-hover);
+    }
+
+    .tab-content {
+        display: none;
+        padding: 0 24px 24px;
+    }
+
+    .tab-content.active {
+        display: block;
+    }
+
     .users-list {
         background: var(--whatsapp-white);
-        max-height: calc(100vh - 300px);
+        max-height: 420px;
         overflow-y: auto;
     }
 
     .user-item {
         display: flex;
         align-items: center;
-        padding: 15px 20px;
+        padding: 16px 24px;
         border-bottom: 1px solid var(--whatsapp-gray);
         transition: background 0.2s;
         cursor: pointer;
@@ -101,6 +153,17 @@
         object-fit: cover;
     }
 
+    .user-item .online-indicator {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: var(--whatsapp-green);
+        border: 2px solid var(--whatsapp-white);
+        position: absolute;
+        bottom: 0;
+        left: 0;
+    }
+
     .user-item .user-info {
         flex: 1;
         min-width: 0;
@@ -121,18 +184,7 @@
         text-overflow: ellipsis;
     }
 
-    .user-item .online-indicator {
-        width: 11px;
-        height: 11px;
-        border-radius: 50%;
-        background: var(--whatsapp-green);
-        border: 2px solid var(--whatsapp-white);
-        position: absolute;
-        bottom: 0;
-        left: 0;
-    }
-
-    .user-item .chat-btn {
+    .chat-btn {
         background: var(--whatsapp-green);
         color: var(--whatsapp-white);
         border: none;
@@ -148,9 +200,23 @@
         gap: 6px;
     }
 
-    .user-item .chat-btn:hover {
+    .chat-btn:hover {
         background: var(--whatsapp-dark-green);
         transform: scale(1.05);
+    }
+
+    .chat-btn--neutral {
+        background: var(--whatsapp-dark-gray);
+        color: var(--whatsapp-white);
+    }
+
+    .chat-btn--danger {
+        background: #dc3545;
+        color: var(--whatsapp-white);
+    }
+
+    .chat-btn--danger:hover {
+        background: #c82333;
     }
 
     .empty-state {
@@ -180,185 +246,184 @@
         animation: spin 1s linear infinite;
     }
 
+    .loading-message {
+        margin-top: 15px;
+        color: var(--whatsapp-dark-gray);
+    }
+
     @keyframes spin {
         to { transform: rotate(360deg); }
     }
 
-    .tabs-container {
-        background: var(--whatsapp-white);
-        padding: 0 20px;
-        border-bottom: 1px solid var(--whatsapp-gray);
+    .requests-panel {
+        padding: 24px;
     }
 
-    .tabs {
-        display: flex;
-        gap: 0;
-    }
-
-    .tab {
-        padding: 15px 20px;
-        background: none;
-        border: none;
-        border-bottom: 3px solid transparent;
-        color: var(--whatsapp-dark-gray);
-        font-size: 15px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.3s;
-    }
-
-    .tab.active {
+    .section-title {
+        margin-bottom: 15px;
+        font-weight: 600;
         color: var(--whatsapp-teal);
-        border-bottom-color: var(--whatsapp-teal);
     }
 
-    .tab:hover {
-        background: var(--whatsapp-hover);
+    .request-actions {
+        display: flex;
+        gap: 10px;
     }
 
-    .tab-content {
-        display: none;
+    .empty-hint {
+        text-align: center;
+        color: var(--whatsapp-dark-gray);
+        padding: 20px;
     }
 
-    .tab-content.active {
-        display: block;
+    @media (max-width: 768px) {
+        .search-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .users-list {
+            max-height: 360px;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="search-page-container">
-    <!-- Header -->
-    <div class="search-header">
-        <h2><i class="fas fa-search"></i> البحث عن الأصدقاء</h2>
-    </div>
-
-    <!-- Search Box -->
-    <div class="search-box-container">
-        <div class="search-input-wrapper">
-            <i class="fas fa-search search-icon-wrapper"></i>
-            <input 
-                type="text" 
-                id="userSearchInput" 
-                class="search-input" 
-                placeholder="ابحث بالاسم أو البريد الإلكتروني..."
-                autocomplete="off"
-            >
+<div class="page-shell page-shell--flush search-page">
+    <div class="search-card">
+        <!-- Header -->
+        <div class="search-header">
+            <h2 class="search-title"><i class="fas fa-search"></i> البحث عن الأصدقاء</h2>
         </div>
-    </div>
 
-    <!-- Tabs -->
-    <div class="tabs-container">
-        <div class="tabs">
-            <button class="tab active" data-tab="all">جميع المستخدمين</button>
-            <button class="tab" data-tab="friends">الأصدقاء</button>
-            <button class="tab" data-tab="blocked">المحظورون</button>
-            <button class="tab" data-tab="requests">طلبات الصداقة</button>
-        </div>
-    </div>
-
-    <!-- Users List -->
-    <div class="users-list" id="usersList">
-        <div class="loading-spinner" id="loadingSpinner">
-            <div class="spinner"></div>
-            <p style="margin-top: 15px; color: var(--whatsapp-dark-gray);">جاري التحميل...</p>
-        </div>
-    </div>
-
-    <!-- Tab Contents -->
-    <div class="tab-content active" id="tabAll" data-tab="all">
-        <!-- سيتم ملؤها بالـ JavaScript -->
-    </div>
-
-    <div class="tab-content" id="tabFriends" data-tab="friends">
-        {% if friends %}
-            {% for friend in friends %}
-                <div class="user-item">
-                    <div class="avatar" style="position: relative;">
-                        {% if friend.friend.profile.avatar %}
-                            <img src="{{ friend.friend.profile.avatar.url }}" alt="{{ friend.friend.username }}">
-                        {% else %}
-                            <i class="fas fa-user"></i>
-                        {% endif %}
-                        {% if friend.friend.profile.is_online %}
-                            <span class="online-indicator"></span>
-                        {% endif %}
-                    </div>
-                    <div class="user-info">
-                        <div class="user-name">{{ friend.friend.username }}</div>
-                        <div class="user-email">{{ friend.friend.email }}</div>
-                    </div>
-                    <a href="{% url 'start_chat' friend.friend.id %}" class="chat-btn">
-                        <i class="fas fa-comment"></i> محادثة
-                    </a>
-                </div>
-            {% endfor %}
-        {% else %}
-            <div class="empty-state">
-                <i class="fas fa-user-friends"></i>
-                <p>لا توجد أصدقاء</p>
+        <!-- Search Box -->
+        <div class="search-box-container">
+            <div class="search-input-wrapper">
+                <i class="fas fa-search search-icon-wrapper"></i>
+                <input 
+                    type="text" 
+                    id="userSearchInput" 
+                    class="search-input" 
+                    placeholder="ابحث بالاسم أو البريد الإلكتروني..."
+                    autocomplete="off"
+                >
             </div>
-        {% endif %}
-    </div>
+        </div>
 
-    <div class="tab-content" id="tabBlocked" data-tab="blocked">
-        {% if blocked_users %}
-            {% for blocked in blocked_users %}
-                <div class="user-item">
-                    <div class="avatar">
-                        {% if blocked.blocked_user.profile.avatar %}
-                            <img src="{{ blocked.blocked_user.profile.avatar.url }}" alt="{{ blocked.blocked_user.username }}">
-                        {% else %}
-                            <i class="fas fa-user"></i>
-                        {% endif %}
-                    </div>
-                    <div class="user-info">
-                        <div class="user-name">{{ blocked.blocked_user.username }}</div>
-                        <div class="user-email">{{ blocked.blocked_user.email }}</div>
-                    </div>
-                    <button class="chat-btn" onclick="unblockUser({{ blocked.blocked_user.id }})" style="background: var(--whatsapp-dark-gray);">
-                        <i class="fas fa-unlock"></i> إلغاء الحظر
-                    </button>
-                </div>
-            {% endfor %}
-        {% else %}
-            <div class="empty-state">
-                <i class="fas fa-ban"></i>
-                <p>لا يوجد مستخدمون محظورون</p>
+        <!-- Tabs -->
+        <div class="tabs-container">
+            <div class="tabs">
+                <button class="tab active" data-tab="all">جميع المستخدمين</button>
+                <button class="tab" data-tab="friends">الأصدقاء</button>
+                <button class="tab" data-tab="blocked">المحظورون</button>
+                <button class="tab" data-tab="requests">طلبات الصداقة</button>
             </div>
-        {% endif %}
-    </div>
+        </div>
 
-    <div class="tab-content" id="tabRequests" data-tab="requests">
-        <div style="padding: 20px;">
-            <h5 style="margin-bottom: 15px;">طلبات مستلمة</h5>
-            {% if received_requests %}
-                {% for request in received_requests %}
+        <!-- Users List -->
+        <div class="users-list" id="usersList">
+            <div class="loading-spinner" id="loadingSpinner">
+                <div class="spinner"></div>
+                <p class="loading-message">جاري التحميل...</p>
+            </div>
+        </div>
+
+        <!-- Tab Contents -->
+        <div class="tab-content active" id="tabAll" data-tab="all">
+            <!-- سيتم ملؤها بالـ JavaScript -->
+        </div>
+
+        <div class="tab-content" id="tabFriends" data-tab="friends">
+            {% if friends %}
+                {% for friend in friends %}
                     <div class="user-item">
                         <div class="avatar">
-                            {% if request.from_user.profile.avatar %}
-                                <img src="{{ request.from_user.profile.avatar.url }}" alt="{{ request.from_user.username }}">
+                            {% if friend.friend.profile.avatar %}
+                                <img src="{{ friend.friend.profile.avatar.url }}" alt="{{ friend.friend.username }}">
+                            {% else %}
+                                <i class="fas fa-user"></i>
+                            {% endif %}
+                            {% if friend.friend.profile.is_online %}
+                                <span class="online-indicator"></span>
+                            {% endif %}
+                        </div>
+                        <div class="user-info">
+                            <div class="user-name">{{ friend.friend.username }}</div>
+                            <div class="user-email">{{ friend.friend.email }}</div>
+                        </div>
+                        <a href="{% url 'start_chat' friend.friend.id %}" class="chat-btn">
+                            <i class="fas fa-comment"></i> محادثة
+                        </a>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-user-friends"></i>
+                    <p>لا توجد أصدقاء</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="tab-content" id="tabBlocked" data-tab="blocked">
+            {% if blocked_users %}
+                {% for blocked in blocked_users %}
+                    <div class="user-item">
+                        <div class="avatar">
+                            {% if blocked.blocked_user.profile.avatar %}
+                                <img src="{{ blocked.blocked_user.profile.avatar.url }}" alt="{{ blocked.blocked_user.username }}">
                             {% else %}
                                 <i class="fas fa-user"></i>
                             {% endif %}
                         </div>
                         <div class="user-info">
-                            <div class="user-name">{{ request.from_user.username }}</div>
-                            <div class="user-email">{{ request.from_user.email }}</div>
+                            <div class="user-name">{{ blocked.blocked_user.username }}</div>
+                            <div class="user-email">{{ blocked.blocked_user.email }}</div>
                         </div>
-                        <div style="display: flex; gap: 10px;">
-                            <button class="chat-btn" onclick="acceptRequest({{ request.id }})" style="background: var(--whatsapp-green);">
-                                <i class="fas fa-check"></i> قبول
-                            </button>
-                            <button class="chat-btn" onclick="rejectRequest({{ request.id }})" style="background: #dc3545;">
-                                <i class="fas fa-times"></i> رفض
-                            </button>
-                        </div>
+                        <button class="chat-btn chat-btn--neutral" onclick="unblockUser({{ blocked.blocked_user.id }})">
+                            <i class="fas fa-unlock"></i> إلغاء الحظر
+                        </button>
                     </div>
                 {% endfor %}
             {% else %}
-                <p style="text-align: center; color: var(--whatsapp-dark-gray); padding: 20px;">لا توجد طلبات مستلمة</p>
+                <div class="empty-state">
+                    <i class="fas fa-ban"></i>
+                    <p>لا يوجد مستخدمون محظورون</p>
+                </div>
             {% endif %}
+        </div>
+
+        <div class="tab-content" id="tabRequests" data-tab="requests">
+            <div class="requests-panel">
+                <h5 class="section-title">طلبات مستلمة</h5>
+                {% if received_requests %}
+                    {% for request in received_requests %}
+                        <div class="user-item">
+                            <div class="avatar">
+                                {% if request.from_user.profile.avatar %}
+                                    <img src="{{ request.from_user.profile.avatar.url }}" alt="{{ request.from_user.username }}">
+                                {% else %}
+                                    <i class="fas fa-user"></i>
+                                {% endif %}
+                            </div>
+                            <div class="user-info">
+                                <div class="user-name">{{ request.from_user.username }}</div>
+                                <div class="user-email">{{ request.from_user.email }}</div>
+                            </div>
+                            <div class="request-actions">
+                                <button class="chat-btn" onclick="acceptRequest({{ request.id }})">
+                                    <i class="fas fa-check"></i> قبول
+                                </button>
+                                <button class="chat-btn chat-btn--danger" onclick="rejectRequest({{ request.id }})">
+                                    <i class="fas fa-times"></i> رفض
+                                </button>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="empty-hint">لا توجد طلبات مستلمة</p>
+                {% endif %}
+            </div>
         </div>
     </div>
 </div>
@@ -493,7 +558,7 @@ function displayUsers(users) {
         
         return `
             <div class="user-item">
-                <div class="avatar" style="position: relative;">
+                <div class="avatar">
                     ${avatar ? `<img src="${avatar}" alt="${user.username}">` : `<i class="fas fa-user"></i>`}
                     ${isOnline ? '<span class="online-indicator"></span>' : ''}
                 </div>
@@ -515,87 +580,6 @@ function showLoading() {
     usersList.innerHTML = `
         <div class="loading-spinner">
             <div class="spinner"></div>
-            <p style="margin-top: 15px; color: var(--whatsapp-dark-gray);">جاري التحميل...</p>
+            <p class="loading-message">جاري التحميل...</p>
         </div>
-    `;
-}
-
-// Show Error
-function showError(message) {
-    const usersList = document.getElementById('usersList');
-    usersList.innerHTML = `
-        <div class="empty-state">
-            <i class="fas fa-exclamation-triangle"></i>
-            <p>${message}</p>
-        </div>
-    `;
-}
-
-// Accept Friend Request
-function acceptRequest(requestId) {
-    apiFetch(`friend-requests/${requestId}/accept/`, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Token ${token}`,
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCookie('csrftoken')
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        location.reload();
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('حدث خطأ في قبول الطلب');
-    });
-}
-
-// Reject Friend Request
-function rejectRequest(requestId) {
-    apiFetch(`friend-requests/${requestId}/reject/`, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Token ${token}`,
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCookie('csrftoken')
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        location.reload();
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('حدث خطأ في رفض الطلب');
-    });
-}
-
-// Unblock User
-function unblockUser(userId) {
-    // Implementation needed
-    alert('ميزة إلغاء الحظر قيد التطوير');
-}
-
-// Get CSRF Token
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
-}
-
-// Load users on page load
-document.addEventListener('DOMContentLoaded', function() {
-    loadAllUsers();
-});
-</script>
-{% endblock %}
+    `
