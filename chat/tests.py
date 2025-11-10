@@ -8,9 +8,11 @@ from unittest import mock
 from PIL import Image
 import io
 import json
+from datetime import timedelta
 
 from asgiref.sync import async_to_sync
 from channels.testing import WebsocketCommunicator
+from django.utils import timezone
 
 from .models import Story, ChatRoom, CallSession, BlockedUser, CallParticipant
 from .call_consumers import CallSignalingConsumer
@@ -19,6 +21,7 @@ from .call_consumers import CallSignalingConsumer
 # Create your tests here.
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class StoryCreationTests(TestCase):
     def test_create_image_story(self):
         user = User.objects.create_user(username='story_test_user', password='pass12345')
@@ -31,7 +34,11 @@ class StoryCreationTests(TestCase):
         upload = SimpleUploadedFile('story.jpg', buffer.getvalue(), content_type='image/jpeg')
 
         url = reverse('story-list')
-        response = client.post(url, {'content_type': 'image', 'content': upload}, format='multipart')
+        response = client.post(url, {
+            'content_type': 'image',
+            'content': upload,
+            'expires_at': (timezone.now() + timedelta(hours=24)).isoformat()
+        }, format='multipart')
 
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(Story.objects.count(), 1)
