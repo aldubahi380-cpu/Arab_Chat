@@ -7,6 +7,8 @@ from django.contrib.auth import get_user_model
 from django.db.models import Count, Q
 from django.utils import timezone
 
+from .services.account_cleanup import delete_user_account
+
 
 @shared_task(bind=True, ignore_result=True, max_retries=3, default_retry_delay=30)
 def send_message_notification_task(self, message_id: int, recipient_id: int) -> None:
@@ -152,4 +154,20 @@ def cleanup_expired_otps(self) -> None:
     from .models import OTPVerification
 
     OTPVerification.objects.filter(expires_at__lt=timezone.now()).delete()
+
+
+@shared_task(
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_backoff_max=300,
+    retry_jitter=True,
+    max_retries=5,
+    ignore_result=True,
+)
+def delete_user_account_task(self, user_id: int) -> None:
+    """
+    حذف حساب مستخدم وجميع البيانات المرتبطة به في الخلفية.
+    """
+    delete_user_account(user_id)
 

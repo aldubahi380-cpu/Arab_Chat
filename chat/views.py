@@ -32,6 +32,7 @@ from .media_utils import (
 )
 from .tasks import send_message_notification_task
 from .tasks import send_call_invite_task
+from .tasks import delete_user_account_task
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
@@ -108,80 +109,37 @@ class UserViewSet(viewsets.ModelViewSet):
         import logging
         logger = logging.getLogger(__name__)
 
-        try:
-            with transaction.atomic():
-                # حذف الرسائل وسجلات القراءة
-                Message.objects.filter(sender=user).delete()
-                MessageRead.objects.filter(user=user).delete()
+        user_id = user.id
 
-                # تنظيف الغرف المرتبطة بالمستخدم
-                from .models import ChatRoom
-                rooms_created = ChatRoom.objects.filter(created_by=user)
-                for room in rooms_created:
-                    if room.is_private and room.members.count() == 2:
-                        room.delete()
-                    else:
-                        room.members.remove(user)
-                        if room.members.count() == 0:
-                            room.delete()
+        # تعطيل الحساب فوراً ومنع تسجيل الدخول أثناء المعالجة
+        if user.is_active:
+            user.is_active = False
+            user.save(update_fields=['is_active'])
 
-                rooms_member = ChatRoom.objects.filter(members=user).exclude(created_by=user)
-                for room in rooms_member:
-                    room.members.remove(user)
-                    if room.is_private and room.members.count() <= 1:
-                        room.delete()
+        # تعطيل كل الجلسات المسجلة
+        SessionDevice.objects.filter(user=user).update(
+            is_active=False,
+            expires_at=timezone.now()
+        )
 
-                # حذف العلاقات الاجتماعية وسجلات القبول
-                from .models import (
-                    FriendRequest, Friend, BlockedUser,
-                    Story, StoryView, Contact, RecentContact,
-                    DeviceToken, OTPVerification
-                )
+        # إزالة الرموز الفورية وتسجيل الخروج
+        Token.objects.filter(user=user).delete()
+        logout(request)
 
-                FriendRequest.objects.filter(from_user=user).delete()
-                FriendRequest.objects.filter(to_user=user).delete()
-                Friend.objects.filter(user=user).delete()
-                Friend.objects.filter(friend=user).delete()
-                BlockedUser.objects.filter(user=user).delete()
-                BlockedUser.objects.filter(blocked_user=user).delete()
+        response = Response({
+            'message': f'تم استلام طلب حذف الحساب "{username}". سيتم حذف البيانات نهائياً خلال لحظات.',
+            'success': True,
+            'status': 'pending_deletion'
+        }, status=status.HTTP_202_ACCEPTED)
+        response.delete_cookie('session_token')
+        response.delete_cookie('session_device_id')
+        response.delete_cookie('auth_token')
 
-                Story.objects.filter(user=user).delete()
-                StoryView.objects.filter(user=user).delete()
+        def _queue_deletion():
+            delete_user_account_task.delay(user_id)
 
-                Contact.objects.filter(user=user).delete()
-                Contact.objects.filter(registered_user=user).update(registered_user=None, is_registered=False)
-
-                RecentContact.objects.filter(user=user).delete()
-                RecentContact.objects.filter(contact_user=user).delete()
-
-                DeviceToken.objects.filter(user=user).delete()
-                SessionDevice.objects.filter(user=user).delete()
-
-                # حذف سجلات OTP المرتبطة برقم المستخدم إن وجدت
-                try:
-                    profile = user.profile
-                except UserProfile.DoesNotExist:  # type: ignore[attr-defined]
-                    profile = None
-                if profile and profile.phone:
-                    OTPVerification.objects.filter(phone=profile.phone).delete()
-
-                # إزالة رموز المصادقة وتسجيل الخروج
-                Token.objects.filter(user=user).delete()
-                logout(request)
-
-                # حذف المستخدم (سيحذف UserProfile تلقائياً بفضل CASCADE)
-                user.delete()
-
-            return Response({
-                'message': f'تم حذف الحساب "{username}" بنجاح من السيرفر وقاعدة البيانات',
-                'success': True
-            }, status=status.HTTP_200_OK)
-        except Exception as exc:
-            logger.error('Error deleting account for %s: %s', username, exc)
-            return Response({
-                'error': f'حدث خطأ أثناء حذف الحساب: {exc}',
-                'success': False
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        transaction.on_commit(_queue_deletion)
+        return response
 
     @action(detail=False, methods=['get'])
     def search(self, request):
