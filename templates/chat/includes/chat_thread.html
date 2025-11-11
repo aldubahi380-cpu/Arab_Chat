@@ -1,0 +1,61 @@
+{% load static %}
+{% with room=thread.room contact=thread.contact_user last_message=thread.last_message %}
+<a href="{% if room %}{% url 'chat_room' room.id %}{% else %}{% url 'start_chat' contact.id %}{% endif %}"
+   class="chat-thread chat-item"
+   data-thread-id="{{ thread.room.id|default:thread.contact_user.id }}"
+   data-room-id="{% if room %}{{ room.id }}{% endif %}"
+   data-user-id="{{ contact.id }}"
+   data-unread="{{ thread.unread_count|default:0 }}"
+   data-thread-kind="{% if room %}{{ room.room_type|default:'private' }}{% else %}private{% endif %}"
+   data-pinned="{{ thread.is_pinned|yesno:'true,false' }}"
+   data-search-text="{{ contact.username }} {% if last_message %}{{ last_message.content|default:'' }}{% endif %}">
+    <div class="chat-thread__avatar">
+        {% if contact.profile.avatar %}
+            <img src="{{ contact.profile.avatar.url }}" alt="{{ contact.username }}" loading="lazy">
+        {% else %}
+            <span class="chat-thread__avatar-placeholder">
+                {{ contact.username|first|default:"?" }}
+            </span>
+        {% endif %}
+        {% if contact.profile.is_online %}
+            <span class="chat-thread__online-indicator" aria-hidden="true"></span>
+        {% endif %}
+    </div>
+    <div class="chat-thread__content">
+        <div class="chat-thread__row">
+            <span class="chat-name">{{ contact.username }}</span>
+            <span class="chat-time" data-time="{% if last_message %}{{ last_message.created_at|date:'c' }}{% else %}{{ thread.last_message_time|date:'c' }}{% endif %}">
+                {% if last_message %}
+                    {{ last_message.created_at|date:"H:i" }}
+                {% else %}
+                    {{ thread.last_message_time|date:"H:i" }}
+                {% endif %}
+            </span>
+        </div>
+        <div class="chat-thread__row chat-thread__row--preview">
+            <span class="preview-text">
+                {% if last_message %}
+                    {% if last_message.sender == user %}
+                        <i class="fas fa-check-double" aria-hidden="true"></i>
+                    {% endif %}
+                    {% if last_message.message_type != 'text' %}
+                        <i class="fas fa-paperclip" aria-hidden="true"></i>
+                    {% endif %}
+                    {{ last_message.content|truncatewords:18|default:"محتوى غير متاح" }}
+                {% else %}
+                    <span class="chat-start-hint">ابدأ المحادثة</span>
+                {% endif %}
+            </span>
+        </div>
+    </div>
+    <div class="chat-thread__meta">
+        {% if thread.unread_count > 0 %}
+            <span class="unread-badge">{{ thread.unread_count }}</span>
+        {% endif %}
+        {% if thread.is_pinned %}
+            <i class="fas fa-thumbtack chat-thread__pin" aria-hidden="true"></i>
+        {% endif %}
+    </div>
+</a>
+{% endwith %}
+

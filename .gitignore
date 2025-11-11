@@ -28,6 +28,15 @@ db.sqlite3-journal
 /media
 /staticfiles
 /static
+# Allow checked-in source assets under static/
+!/static/
+!/static/css/
+!/static/css/**
+!/static/js/
+!/static/js/**
+!/static/pwa/
+!/static/pwa/**
+!/static/sw.js
 
 # Virtual Environment
 my_env/

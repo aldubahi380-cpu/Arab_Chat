@@ -202,10 +202,22 @@ def private_chats_view(request):
             'unread_count': unread_count,
             'last_message_time': contact.last_message_time,
             'message_count': contact.message_count,
+            'is_pinned': contact.is_pinned,
+            'pinned_at': contact.pinned_at,
+            'is_muted': False,
         })
     
+    pinned_threads = sorted(
+        [c for c in contacts_data if c['is_pinned']],
+        key=lambda item: item.get('pinned_at') or item.get('last_message_time'),
+        reverse=True
+    )
+    regular_threads = [c for c in contacts_data if not c['is_pinned']]
+    
     context = {
-        'recent_contacts': contacts_data
+        'chat_threads': regular_threads,
+        'pinned_threads': pinned_threads,
+        'communities_preview': [],
     }
     return render_spa(request, 'chat/private_chats.html', context)
 
@@ -513,9 +525,21 @@ def chat_room_view(request, room_id):
         if request.user not in room.members.all():
             return redirect('private_chats')
         
+        pinned_messages = Message.objects.filter(room=room, is_pinned=True).order_by('-pinned_at', '-created_at')[:3]
+        is_chat_pinned = False
+        other_member = room.members.exclude(id=request.user.id).first()
+        if room.is_private and other_member:
+            try:
+                contact_entry = RecentContact.objects.get(user=request.user, contact_user=other_member)
+                is_chat_pinned = contact_entry.is_pinned
+            except RecentContact.DoesNotExist:
+                is_chat_pinned = False
+
         context = {
             'room': room,
             'messages': messages,
+            'pinned_messages': pinned_messages,
+            'is_chat_pinned': is_chat_pinned,
         }
         return render_spa(request, 'chat/chat_room.html', context)
     except ChatRoom.DoesNotExist:

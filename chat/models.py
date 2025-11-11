@@ -122,6 +122,16 @@ class Message(models.Model):
     deleted_at = models.DateTimeField(blank=True, null=True, verbose_name='تاريخ الحذف')
     is_edited = models.BooleanField(default=False, verbose_name='تم التعديل')
     edited_at = models.DateTimeField(blank=True, null=True, verbose_name='تاريخ التعديل')
+    is_pinned = models.BooleanField(default=False, verbose_name='مثبتة')
+    pinned_at = models.DateTimeField(blank=True, null=True, verbose_name='تاريخ التثبيت')
+    pinned_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='messages_pinned',
+        verbose_name='تم التثبيت بواسطة'
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الإرسال')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='تاريخ التحديث')
 
@@ -592,14 +602,16 @@ class RecentContact(models.Model):
     last_message_time = models.DateTimeField(auto_now=True, verbose_name='آخر رسالة')
     message_count = models.IntegerField(default=0, verbose_name='عدد الرسائل')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الإنشاء')
+    is_pinned = models.BooleanField(default=False, verbose_name='محادثة مثبّتة')
+    pinned_at = models.DateTimeField(blank=True, null=True, verbose_name='تاريخ تثبيت المحادثة')
     
     class Meta:
         verbose_name = 'مستخدم متواصل معه'
         verbose_name_plural = 'المستخدمون المتواصل معهم'
         unique_together = ['user', 'contact_user']
-        ordering = ['-last_message_time']
+        ordering = ['-is_pinned', '-pinned_at', '-last_message_time']
         indexes = [
-            models.Index(fields=['user', '-last_message_time']),
+            models.Index(fields=['user', '-is_pinned', '-pinned_at', '-last_message_time']),
         ]
     
     def __str__(self):

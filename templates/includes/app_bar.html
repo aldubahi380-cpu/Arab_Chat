@@ -14,13 +14,13 @@
         </div>
     </div>
     <div class="app-bar__actions">
-        <button type="button" class="app-bar__action-button" title="بحث" aria-label="بحث">
+        <button type="button" class="app-bar__action-button" title="بحث" aria-label="بحث" data-app-action="search">
             <i class="fas fa-search"></i>
         </button>
-        <button type="button" class="app-bar__action-button" title="الكاميرا" aria-label="الكاميرا">
+        <button type="button" class="app-bar__action-button" title="الكاميرا" aria-label="الكاميرا" data-app-action="camera">
             <i class="fas fa-camera"></i>
         </button>
-        <button type="button" class="app-bar__action-button" title="القائمة" aria-label="القائمة">
+        <button type="button" class="app-bar__action-button" title="القائمة" aria-label="القائمة" data-app-action="menu">
             <i class="fas fa-ellipsis-v"></i>
         </button>
         {% block app_bar_extra_actions %}{% endblock %}

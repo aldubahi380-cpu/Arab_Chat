@@ -66,13 +66,16 @@ class ChatRoomSerializer(serializers.ModelSerializer):
     last_message = serializers.SerializerMethodField()
     invite_link = serializers.SerializerMethodField()
     is_owner = serializers.SerializerMethodField()
+    pinned_messages = serializers.SerializerMethodField()
+    is_pinned = serializers.SerializerMethodField()
     
     class Meta:
         model = ChatRoom
         fields = ['id', 'name', 'description', 'room_type', 'is_private', 'invite_code', 'invite_link',
                   'created_by', 'members', 'member_count', 'last_message', 'is_owner',
+                  'pinned_messages', 'is_pinned',
                   'created_at', 'updated_at']
-        read_only_fields = ['id', 'is_private', 'invite_code', 'invite_link', 'is_owner', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'is_private', 'invite_code', 'invite_link', 'is_owner', 'pinned_messages', 'is_pinned', 'created_at', 'updated_at']
     
     def get_member_count(self, obj):
         return obj.members.count()
@@ -98,6 +101,19 @@ class ChatRoomSerializer(serializers.ModelSerializer):
             return obj.created_by_id == request.user.id
         return False
 
+    def get_pinned_messages(self, obj):
+        pinned_qs = obj.messages.filter(is_pinned=True).order_by('-pinned_at')[:3]
+        request = self.context.get('request')
+        serializer = MessageSerializer(pinned_qs, many=True, context={'request': request})
+        return serializer.data
+
+    def get_is_pinned(self, obj):
+        request = self.context.get('request')
+        if not request or not hasattr(request, 'user') or not request.user.is_authenticated:
+            return False
+        from .models import RecentContact
+        return RecentContact.objects.filter(user=request.user, contact_user__in=obj.members.all(), is_pinned=True).exists()
+
 
 class MessageSerializer(serializers.ModelSerializer):
     """Serializer للرسائل"""
@@ -109,13 +125,15 @@ class MessageSerializer(serializers.ModelSerializer):
     file_size = serializers.SerializerMethodField()
     original_available = serializers.SerializerMethodField()
     original_download_url = serializers.SerializerMethodField()
+    pinned_by = UserSerializer(read_only=True)
     
     class Meta:
         model = Message
         fields = ['id', 'room', 'sender', 'content', 'message_type', 'file', 
                   'file_url', 'file_name', 'file_size', 'original_available', 'original_download_url',
-                  'is_read', 'read_by', 'is_edited', 'edited_at', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'is_read', 'is_edited', 'edited_at', 'created_at', 'updated_at']
+                  'is_read', 'read_by', 'is_edited', 'edited_at', 'is_pinned', 'pinned_at', 'pinned_by',
+                  'created_at', 'updated_at']
+        read_only_fields = ['id', 'is_read', 'is_edited', 'edited_at', 'is_pinned', 'pinned_at', 'pinned_by', 'created_at', 'updated_at']
     
     def get_read_by(self, obj):
         return [mr.user.username for mr in obj.read_by.all()]

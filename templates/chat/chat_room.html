@@ -404,6 +404,79 @@
         background: var(--whatsapp-light-gray);
     }
 
+    .pinned-banner {
+        background: rgba(7, 94, 84, 0.08);
+        border-radius: 12px;
+        padding: 10px 14px;
+        margin: 8px 14px 4px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        box-shadow: inset 0 0 0 1px rgba(7, 94, 84, 0.12);
+    }
+
+    .pinned-banner__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: var(--whatsapp-teal);
+        font-weight: 600;
+        font-size: 14px;
+    }
+
+    .pinned-banner__chips {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding-bottom: 4px;
+    }
+
+    .pinned-banner.collapsed .pinned-banner__chips {
+        display: none;
+    }
+
+    .message.highlighted {
+        box-shadow: 0 0 0 3px rgba(7, 94, 84, 0.25);
+        border-radius: 12px;
+        transition: box-shadow 0.3s ease;
+    }
+
+    .pinned-chip {
+        border: none;
+        border-radius: 18px;
+        padding: 8px 12px;
+        background: #fff;
+        color: var(--whatsapp-teal);
+        font-size: 13px;
+        box-shadow: 0 4px 12px rgba(7, 94, 84, 0.12);
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-start;
+        min-width: 180px;
+        gap: 4px;
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .pinned-chip:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 18px rgba(7, 94, 84, 0.2);
+    }
+
+    .pinned-chip__text {
+        font-weight: 500;
+        color: #06463F;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        width: 100%;
+    }
+
+    .pinned-chip__meta {
+        font-size: 11px;
+        color: rgba(0, 0, 0, 0.55);
+    }
+
     @media (min-width: 769px) {
         .message-actions-panel {
             position: absolute;
@@ -559,6 +632,26 @@
 
         <!-- Messages Container -->
         <div class="messages-container" id="messagesContainer">
+            {% if pinned_messages %}
+            <div class="pinned-banner" id="pinnedMessagesBanner">
+                <div class="pinned-banner__header">
+                    <span><i class="fas fa-thumbtack"></i> رسائل مثبّتة</span>
+                    <button type="button" class="message-action-option cancel" style="padding:6px 10px; width:auto; gap:4px;" id="collapsePinnedBanner">
+                        <i class="fas fa-chevron-up"></i>
+                    </button>
+                </div>
+                <div class="pinned-banner__chips" id="pinnedMessagesList">
+                    {% for pinned in pinned_messages %}
+                    <button type="button" class="pinned-chip" data-target-message="{{ pinned.id }}">
+                        <span class="pinned-chip__text">{{ pinned.content|default:"محتوى مرفق"|truncatewords:12 }}</span>
+                        <span class="pinned-chip__meta">
+                            {% if pinned.pinned_by %}{{ pinned.pinned_by.username }} · {% endif %}{{ pinned.pinned_at|date:"H:i" }}
+                        </span>
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
             <div class="edit-mode-banner" id="editModeBanner">
                 <div class="edit-mode-text" id="editModeText"></div>
                 <button type="button" id="cancelEditButton">إلغاء</button>
@@ -2063,6 +2156,31 @@ function handleTyping() {
 document.addEventListener('DOMContentLoaded', function() {
     // Scroll to bottom on load (without animation for initial load)
     scrollToBottom(false);
+    
+    const pinnedBanner = document.getElementById('pinnedMessagesBanner');
+    if (pinnedBanner) {
+        const collapseBtn = document.getElementById('collapsePinnedBanner');
+        collapseBtn?.addEventListener('click', () => {
+            pinnedBanner.classList.toggle('collapsed');
+            const icon = collapseBtn.querySelector('i');
+            if (icon) {
+                icon.classList.toggle('fa-chevron-up');
+                icon.classList.toggle('fa-chevron-down');
+            }
+        });
+        pinnedBanner.addEventListener('click', (event) => {
+            const chip = event.target.closest('.pinned-chip');
+            if (!chip) return;
+            const targetId = chip.getAttribute('data-target-message');
+            if (!targetId) return;
+            const targetMessage = document.querySelector(`[data-message-id=\"${targetId}\"]`);
+            if (targetMessage) {
+                targetMessage.classList.add('highlighted');
+                targetMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setTimeout(() => targetMessage.classList.remove('highlighted'), 1600);
+            }
+        });
+    }
     
     // تهيئة lastMessageId من الرسائل الحالية
     const existingMessages = document.querySelectorAll('[data-message-id]');

@@ -16,7 +16,7 @@ from django.conf import settings
 from django.http import FileResponse
 from .models import (
     UserProfile, ChatRoom, Message, MessageRead, SessionDevice,
-    CallSession, CallParticipant, BlockedUser
+    CallSession, CallParticipant, BlockedUser, RecentContact
 )
 from .serializers import (
     UserSerializer, UserProfileSerializer, ChatRoomSerializer,
@@ -411,6 +411,79 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         room.save(update_fields=['invite_code', 'is_private', 'updated_at'])
         serializer = self.get_serializer(room)
         return Response({'invite_code': room.invite_code, 'invite_link': serializer.data.get('invite_link')})
+
+    @action(detail=True, methods=['post'])
+    def pin_chat(self, request, pk=None):
+        """تثبيت محادثة خاصة في أعلى القائمة"""
+        room = self.get_object()
+        if not room.is_private:
+            return Response({'error': 'يمكن تثبيت المحادثات الخاصة فقط حالياً'}, status=status.HTTP_400_BAD_REQUEST)
+        user = request.user
+        other_member = room.members.exclude(id=user.id).first()
+        if not other_member:
+            return Response({'error': 'لم يتم العثور على العضو الآخر'}, status=status.HTTP_400_BAD_REQUEST)
+        contact, _ = RecentContact.objects.get_or_create(user=user, contact_user=other_member)
+        contact.is_pinned = True
+        contact.pinned_at = timezone.now()
+        contact.save(update_fields=['is_pinned', 'pinned_at'])
+        return Response({'status': 'pinned', 'contact_user_id': other_member.id})
+
+    @action(detail=True, methods=['post'])
+    def unpin_chat(self, request, pk=None):
+        """إلغاء تثبيت محادثة خاصة"""
+        room = self.get_object()
+        if not room.is_private:
+            return Response({'error': 'يمكن إلغاء تثبيت المحادثات الخاصة فقط حالياً'}, status=status.HTTP_400_BAD_REQUEST)
+        user = request.user
+        other_member = room.members.exclude(id=user.id).first()
+        if not other_member:
+            return Response({'error': 'لم يتم العثور على العضو الآخر'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            contact = RecentContact.objects.get(user=user, contact_user=other_member)
+        except RecentContact.DoesNotExist:
+            return Response({'status': 'unpinned'})
+        contact.is_pinned = False
+        contact.pinned_at = None
+        contact.save(update_fields=['is_pinned', 'pinned_at'])
+        return Response({'status': 'unpinned', 'contact_user_id': other_member.id})
+
+    @action(detail=True, methods=['post'])
+    def pin_message(self, request, pk=None):
+        """تثبيت رسالة داخل غرفة الدردشة"""
+        room = self.get_object()
+        message_id = request.data.get('message_id')
+        if not message_id:
+            return Response({'error': 'message_id مطلوب'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            message = room.messages.get(id=message_id)
+        except Message.DoesNotExist:
+            return Response({'error': 'الرسالة غير موجودة في هذه الغرفة'}, status=status.HTTP_404_NOT_FOUND)
+        if not message.is_pinned and room.messages.filter(is_pinned=True).count() >= 3:
+            return Response({'error': 'يمكن تثبيت ثلاث رسائل كحد أقصى'}, status=status.HTTP_400_BAD_REQUEST)
+        message.is_pinned = True
+        message.pinned_at = timezone.now()
+        message.pinned_by = request.user
+        message.save(update_fields=['is_pinned', 'pinned_at', 'pinned_by'])
+        serializer = MessageSerializer(message, context={'request': request})
+        return Response({'status': 'pinned', 'message': serializer.data})
+
+    @action(detail=True, methods=['post'])
+    def unpin_message(self, request, pk=None):
+        """إلغاء تثبيت رسالة داخل غرفة الدردشة"""
+        room = self.get_object()
+        message_id = request.data.get('message_id')
+        if not message_id:
+            return Response({'error': 'message_id مطلوب'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            message = room.messages.get(id=message_id, is_pinned=True)
+        except Message.DoesNotExist:
+            return Response({'status': 'unpinned'})
+        message.is_pinned = False
+        message.pinned_at = None
+        message.pinned_by = None
+        message.save(update_fields=['is_pinned', 'pinned_at', 'pinned_by'])
+        serializer = MessageSerializer(message, context={'request': request})
+        return Response({'status': 'unpinned', 'message': serializer.data})
 
     @action(detail=False, methods=['get'])
     def my_rooms(self, request):
