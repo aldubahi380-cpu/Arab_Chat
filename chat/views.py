@@ -33,6 +33,7 @@ from .media_utils import (
 from .tasks import send_message_notification_task
 from .tasks import send_call_invite_task
 from .tasks import delete_user_account_task
+from .services.account_cleanup import delete_user_account
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
@@ -136,7 +137,15 @@ class UserViewSet(viewsets.ModelViewSet):
         response.delete_cookie('auth_token')
 
         def _queue_deletion():
-            delete_user_account_task.delay(user_id)
+            try:
+                delete_user_account_task.delay(user_id)
+            except Exception as exc:
+                logger.warning(
+                    "Failed to enqueue delete task for user %s, running synchronously. Error: %s",
+                    username,
+                    exc,
+                )
+                delete_user_account(user_id)
 
         transaction.on_commit(_queue_deletion)
         return response
