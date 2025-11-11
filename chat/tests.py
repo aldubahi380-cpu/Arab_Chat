@@ -223,3 +223,59 @@ class CallSessionWebsocketTests(TransactionTestCase):
             CallParticipant.objects.filter(session__room=self.room, user=self.blocked_member).exists()
         )
         mock_delay.assert_not_called()
+
+
+@override_settings(
+    SECURE_SSL_REDIRECT=False,
+    ALLOWED_HOSTS=['testserver'],
+)
+class DeleteAccountTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='delete_me', password='pass12345')
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    @mock.patch('chat.views.delete_user_account')
+    @mock.patch('chat.views.delete_user_account_task.delay')
+    @mock.patch('chat.views.current_app.control.inspect')
+    def test_delete_account_uses_async_worker(self, mock_inspect, mock_delay, mock_delete_user_account):
+        inspector = mock.Mock()
+        inspector.stats.return_value = {'worker1': {}}
+        inspector.registered.return_value = {'worker1': ['chat.tasks.delete_user_account_task']}
+        inspector.active.return_value = {'worker1': []}
+        mock_inspect.return_value = inspector
+
+        response = self.client.delete('/api/users/delete_account/')
+
+        self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED, response.data)
+        self.assertTrue(response.data.get('success'))
+        mock_delay.assert_called_once_with(self.user.id)
+        mock_delete_user_account.assert_not_called()
+
+    @mock.patch('chat.views.delete_user_account')
+    @mock.patch('chat.views.delete_user_account_task.delay')
+    @mock.patch('chat.views.current_app.control.inspect')
+    def test_delete_account_falls_back_to_sync(self, mock_inspect, mock_delay, mock_delete_user_account):
+        mock_inspect.return_value = None
+        mock_delay.side_effect = RuntimeError("Broker down")
+        mock_delete_user_account.return_value = True
+
+        response = self.client.delete('/api/users/delete_account/')
+
+        self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED, response.data)
+        self.assertTrue(response.data.get('success'))
+        mock_delete_user_account.assert_called_once_with(self.user.id)
+
+    @mock.patch('chat.views.delete_user_account')
+    @mock.patch('chat.views.delete_user_account_task.delay')
+    @mock.patch('chat.views.current_app.control.inspect')
+    def test_delete_account_failure_surfaces_error(self, mock_inspect, mock_delay, mock_delete_user_account):
+        mock_inspect.return_value = None
+        mock_delay.side_effect = RuntimeError("Broker down")
+        mock_delete_user_account.side_effect = Exception("Storage unavailable")
+
+        response = self.client.delete('/api/users/delete_account/')
+
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR, response.data)
+        self.assertFalse(response.data.get('success'))
+        self.assertIn('Storage unavailable', response.data.get('details', ''))

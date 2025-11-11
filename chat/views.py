@@ -141,7 +141,7 @@ class UserViewSet(viewsets.ModelViewSet):
             try:
                 if getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False):
                     delete_user_account_task.delay(user_id)
-                    return
+                    return None
 
                 inspector = None
                 has_workers = False
@@ -165,17 +165,40 @@ class UserViewSet(viewsets.ModelViewSet):
 
                 if has_workers:
                     delete_user_account_task.delay(user_id)
-                else:
-                    raise RuntimeError("No active Celery workers available")
+                    return None
             except Exception as exc:
                 logger.warning(
-                    "Failed to enqueue delete task for user %s, running synchronously. Error: %s",
+                    "Failed to enqueue delete task for user %s, will attempt synchronous deletion. Error: %s",
                     username,
                     exc,
                 )
-                delete_user_account(user_id)
 
-        transaction.on_commit(_queue_deletion)
+            try:
+                delete_user_account(user_id)
+            except Exception as cleanup_exc:
+                logger.exception(
+                    "Failed to delete account for user %s synchronously",
+                    username,
+                    exc_info=True,
+                )
+                return cleanup_exc
+            return None
+
+        deletion_error = _queue_deletion()
+        if deletion_error is not None:
+            failure_response = Response(
+                {
+                    'success': False,
+                    'error': 'تعذّر حذف الحساب. يرجى المحاولة لاحقاً أو التواصل مع الدعم.',
+                    'details': str(deletion_error),
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+            failure_response.delete_cookie('session_token')
+            failure_response.delete_cookie('session_device_id')
+            failure_response.delete_cookie('auth_token')
+            return failure_response
+
         return response
 
     @action(detail=False, methods=['get'])
