@@ -1,0 +1,29 @@
+{% load static %}
+<header class="app-bar" role="banner">
+    <div class="app-bar__leading">
+        {% if user.is_authenticated and user.profile.avatar %}
+            <img src="{{ user.profile.avatar.url }}" alt="{{ user.username }}" class="app-bar__avatar" loading="lazy">
+        {% else %}
+            <span class="app-bar__avatar app-bar__avatar--placeholder">
+                <i class="fas fa-user"></i>
+            </span>
+        {% endif %}
+        <div class="app-bar__brand">
+            <span class="app-bar__brand-title">{% block app_bar_brand %}WhatsApp Style{% endblock %}</span>
+            <span class="app-bar__brand-subtitle">{% block app_bar_subtitle %}Arab Chat{% endblock %}</span>
+        </div>
+    </div>
+    <div class="app-bar__actions">
+        <button type="button" class="app-bar__action-button" title="بحث" aria-label="بحث">
+            <i class="fas fa-search"></i>
+        </button>
+        <button type="button" class="app-bar__action-button" title="الكاميرا" aria-label="الكاميرا">
+            <i class="fas fa-camera"></i>
+        </button>
+        <button type="button" class="app-bar__action-button" title="القائمة" aria-label="القائمة">
+            <i class="fas fa-ellipsis-v"></i>
+        </button>
+        {% block app_bar_extra_actions %}{% endblock %}
+    </div>
+</header>
+
