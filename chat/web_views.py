@@ -301,15 +301,36 @@ def groups_view(request):
             'member_ids': list(group.members.values_list('id', flat=True)),
         })
 
-    friends = Friend.objects.filter(user=user).select_related('friend', 'friend__profile')
-    friend_options = [
-        {
+    friends = Friend.objects.filter(user=user).select_related('friend')
+    friend_options = []
+    for friend in friends:
+        avatar_url = None
+        try:
+            profile = friend.friend.profile
+        except UserProfile.DoesNotExist:
+            profile = None
+        if profile and profile.avatar:
+            avatar_url = profile.avatar.url
+        friend_options.append({
             'id': friend.friend.id,
             'username': friend.friend.username,
-            'avatar': friend.friend.profile.avatar.url if hasattr(friend.friend, 'profile') and friend.friend.profile.avatar else None,
-        }
-        for friend in friends
-    ]
+            'avatar': avatar_url,
+        })
+    friends = Friend.objects.filter(user=user).select_related('friend')
+    friend_options = []
+    for friend in friends:
+        avatar_url = None
+        try:
+            profile = friend.friend.profile
+        except UserProfile.DoesNotExist:
+            profile = None
+        if profile and profile.avatar:
+            avatar_url = profile.avatar.url
+        friend_options.append({
+            'id': friend.friend.id,
+            'username': friend.friend.username,
+            'avatar': avatar_url,
+        })
 
     context = {
         'communities': communities,
