@@ -1,9 +1,14 @@
-from django.db import models
-from django.contrib.auth.models import User
-from django.utils import timezone
+import logging
 from datetime import timedelta
-from django.core.validators import RegexValidator
 import secrets
+
+from django.contrib.auth.models import User
+from django.core.validators import RegexValidator
+from django.db import models
+from django.utils import timezone
+
+
+logger = logging.getLogger(__name__)
 
 
 class UserProfile(models.Model):
@@ -131,6 +136,29 @@ class Message(models.Model):
 
     def __str__(self):
         return f"{self.sender.username} - {self.content[:50]}"
+
+    def delete(self, using=None, keep_parents=False):
+        file_refs = []
+        if self.file:
+            file_refs.append((self.file.storage, self.file.name))
+        if self.original_file:
+            file_refs.append((self.original_file.storage, self.original_file.name))
+
+        result = super().delete(using=using, keep_parents=keep_parents)
+
+        for storage, name in file_refs:
+            try:
+                if storage and name:
+                    storage.delete(name)
+            except Exception as exc:
+                logger.warning(
+                    "Failed to delete file %s for message %s during cleanup: %s",
+                    name,
+                    self.pk,
+                    exc,
+                    exc_info=True,
+                )
+        return result
 
 
 class MessageRead(models.Model):
