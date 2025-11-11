@@ -1,6 +1,7 @@
 import logging
 from pathlib import Path
 
+from celery import current_app
 from rest_framework import viewsets, status, serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -138,7 +139,34 @@ class UserViewSet(viewsets.ModelViewSet):
 
         def _queue_deletion():
             try:
-                delete_user_account_task.delay(user_id)
+                if getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False):
+                    delete_user_account_task.delay(user_id)
+                    return
+
+                inspector = None
+                has_workers = False
+                try:
+                    inspector = current_app.control.inspect()
+                    if inspector:
+                        stats = inspector.stats() or {}
+                        registered = inspector.registered() or {}
+                        active = inspector.active() or {}
+                        has_workers = any(
+                            bool(worker_map)
+                            for worker_map in (stats, registered, active)
+                        )
+                except Exception as inspect_exc:
+                    logger.debug(
+                        "Failed to inspect celery workers before deleting user %s: %s",
+                        username,
+                        inspect_exc,
+                        exc_info=True,
+                    )
+
+                if has_workers:
+                    delete_user_account_task.delay(user_id)
+                else:
+                    raise RuntimeError("No active Celery workers available")
             except Exception as exc:
                 logger.warning(
                     "Failed to enqueue delete task for user %s, running synchronously. Error: %s",

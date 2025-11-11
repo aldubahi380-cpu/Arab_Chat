@@ -280,6 +280,15 @@ CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND', default=CELERY_BROKER_URL)
 CELERY_TASK_DEFAULT_QUEUE = 'arab_chat'
 CELERY_TASK_TIME_LIMIT = 30 * 60
 CELERY_TASK_SOFT_TIME_LIMIT = 10 * 60
+
+celery_always_eager_raw = env('CELERY_TASK_ALWAYS_EAGER', default=None)
+if celery_always_eager_raw is not None:
+    CELERY_TASK_ALWAYS_EAGER = env.bool('CELERY_TASK_ALWAYS_EAGER')
+elif DEBUG and not redis_url and not os.environ.get('CELERY_BROKER_URL'):
+    CELERY_TASK_ALWAYS_EAGER = True
+else:
+    CELERY_TASK_ALWAYS_EAGER = False
+
 CELERY_BEAT_SCHEDULE = {
     'cleanup-stale-call-sessions': {
         'task': 'chat.tasks.cleanup_stale_call_sessions',
@@ -294,9 +303,6 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(hour='*/1'),
     },
 }
-
-if DEBUG and not redis_url and not env('CELERY_BROKER_URL'):
-    CELERY_TASK_ALWAYS_EAGER = True
 
 # Firebase Cloud Messaging
 FCM_SERVER_KEY = env('FCM_SERVER_KEY', default=os.environ.get('FCM_SERVER_KEY', ''))
