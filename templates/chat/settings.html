@@ -265,6 +265,10 @@ function buildAuthHeaders() {
     if (token) {
         headers['Authorization'] = `Token ${token}`;
     }
+    const csrfToken = getCookie('csrftoken');
+    if (csrfToken) {
+        headers['X-CSRFToken'] = csrfToken;
+    }
     return headers;
 }
 
