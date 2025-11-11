@@ -195,8 +195,14 @@ def private_chats_view(request):
                 read_by__user=user
             ).count()
         
+        try:
+            contact_profile = contact_user.profile
+        except UserProfile.DoesNotExist:
+            contact_profile = None
+        
         contacts_data.append({
             'contact_user': contact_user,
+            'contact_profile': contact_profile,
             'room': room,
             'last_message': last_message,
             'unread_count': unread_count,

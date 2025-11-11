@@ -71,6 +71,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const filterChips = document.querySelectorAll('.filter-chip');
     const composeFab = document.getElementById('chatComposeFab');
 
+    function escapeHtml(value) {
+        const div = document.createElement('div');
+        div.textContent = value ?? '';
+        return div.innerHTML;
+    }
+
     function toggleSearchOverlay(visible) {
         if (!searchOverlay) return;
         if (visible) {
@@ -206,7 +212,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const icon = isMine ? '<i class=\"fas fa-check-double\" aria-hidden=\"true\"></i>' : '';
             const content = (payload.last_message.content || '').slice(0, 64);
             if (preview) {
-                preview.innerHTML = `${icon} ${content}`;
+                preview.innerHTML = `${icon} ${escapeHtml(content)}`;
             }
             if (timeEl && payload.last_message.created_at) {
                 timeEl.dataset.time = payload.last_message.created_at;

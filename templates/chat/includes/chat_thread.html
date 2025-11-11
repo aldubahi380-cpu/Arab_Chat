@@ -10,14 +10,14 @@
    data-pinned="{{ thread.is_pinned|yesno:'true,false' }}"
    data-search-text="{{ contact.username }} {% if last_message %}{{ last_message.content|default:'' }}{% endif %}">
     <div class="chat-thread__avatar">
-        {% if contact.profile.avatar %}
-            <img src="{{ contact.profile.avatar.url }}" alt="{{ contact.username }}" loading="lazy">
+        {% if thread.contact_profile and thread.contact_profile.avatar %}
+            <img src="{{ thread.contact_profile.avatar.url }}" alt="{{ contact.username }}" loading="lazy">
         {% else %}
             <span class="chat-thread__avatar-placeholder">
                 {{ contact.username|first|default:"?" }}
             </span>
         {% endif %}
-        {% if contact.profile.is_online %}
+        {% if thread.contact_profile and thread.contact_profile.is_online %}
             <span class="chat-thread__online-indicator" aria-hidden="true"></span>
         {% endif %}
     </div>
