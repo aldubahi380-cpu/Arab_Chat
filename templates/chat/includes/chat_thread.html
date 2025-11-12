@@ -1,7 +1,7 @@
 {% load static %}
 {% with room=thread.room contact=thread.contact_user last_message=thread.last_message meta=thread.last_message_meta %}
 <a href="{% if room %}{% url 'chat_room' room.id %}{% else %}{% url 'start_chat' contact.id %}{% endif %}"
-   class="chat-thread chat-item{% if thread.unread_count|default:0 > 0 %} chat-thread--unread{% endif %}"
+   class="chat-thread chat-item{% if thread.unread_count|default:0 > 0 %} chat-thread--unread{% endif %}{% if thread.is_active %} chat-thread--active{% endif %}"
    data-thread-id="{{ thread.room.id|default:thread.contact_user.id }}"
    data-room-id="{% if room %}{{ room.id }}{% endif %}"
    data-user-id="{{ contact.id }}"

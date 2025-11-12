@@ -120,6 +120,15 @@
     background: rgba(7, 94, 84, 0.04);
 }
 
+.chat-thread--active {
+    background: rgba(7, 94, 84, 0.12);
+    border-right: 4px solid var(--wa-color-accent);
+}
+
+.chat-thread--active .chat-name {
+    font-weight: var(--wa-font-weight-bold);
+}
+
 .chat-thread__avatar {
     position: relative;
     width: 52px;

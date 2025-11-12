@@ -5,6 +5,309 @@
 {% block extra_css %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" integrity="sha512-7GmqYVII5NZmYBZ2Kc7cG9Pja/qPLDMAYA9YVAXzMIcAvPPnlPN002SkkKQ0YOq6T6fjtcgH4H0uZ5Dg1YB8Hg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 <style>
+    .whatsapp-container.chat-room-page {
+        display: flex;
+        flex: 1 1 auto;
+        direction: ltr;
+        background: #efeae2;
+        min-height: calc(100vh - var(--wa-appbar-height, 56px));
+    }
+
+    .chat-list-panel,
+    .chat-window-panel {
+        direction: rtl;
+    }
+
+    .chat-list-panel {
+        width: 360px;
+        max-width: 360px;
+        min-width: 300px;
+        display: flex;
+        flex-direction: column;
+        background: #ffffff;
+        border-right: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    .chat-list-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 16px;
+        background: var(--wa-color-primary, #075e54);
+        color: #fff;
+        box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+    }
+
+    .chat-list-header .avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.2);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .online-indicator {
+        position: absolute;
+        bottom: 2px;
+        left: 2px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--wa-color-accent, #25D366);
+        border: 2px solid #fff;
+        box-shadow: 0 0 0 2px rgba(37, 211, 102, 0.25);
+    }
+
+    .chat-list-header .icon-btn {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        border: none;
+        background: rgba(255, 255, 255, 0.2);
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background 0.2s ease;
+    }
+
+    .chat-list-header .icon-btn:hover {
+        background: rgba(255, 255, 255, 0.32);
+    }
+
+    .chat-list-search {
+        padding: 12px 16px;
+    }
+
+    .chat-list-search__field {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 24px;
+        background: rgba(7, 94, 84, 0.08);
+    }
+
+    .chat-list-search__icon {
+        width: 18px;
+        height: 18px;
+        color: rgba(7, 94, 84, 0.6);
+    }
+
+    .chat-list-search__input {
+        border: none;
+        background: transparent;
+        flex: 1;
+        font-size: var(--wa-font-size-sm, 13px);
+        color: rgba(17, 17, 17, 0.9);
+        outline: none;
+    }
+
+    .chat-list-scroll {
+        flex: 1;
+        overflow-y: auto;
+        padding: 8px 0 16px;
+    }
+
+    .chat-list-section-title {
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        color: rgba(17, 17, 17, 0.45);
+        padding: 8px 20px;
+        text-transform: uppercase;
+    }
+
+    .chat-sidebar-empty {
+        padding: 32px 16px;
+        text-align: center;
+        color: rgba(17, 17, 17, 0.55);
+        font-size: var(--wa-font-size-sm, 13px);
+    }
+
+    .chat-window-panel {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        background: #efeae2;
+    }
+
+    .chat-window-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 20px;
+        background: #f0f2f5;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    .chat-window-header .header-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .chat-window-header .avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        overflow: hidden;
+        background: rgba(7, 94, 84, 0.1);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .chat-window-header .user-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .chat-window-header .user-name {
+        font-weight: 700;
+        color: rgba(17, 17, 17, 0.9);
+    }
+
+    .chat-window-header .user-status {
+        font-size: 12px;
+        color: rgba(17, 17, 17, 0.55);
+    }
+
+    .chat-window-header .icon-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: none;
+        background: transparent;
+        color: rgba(17, 17, 17, 0.6);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s ease;
+    }
+
+    .chat-window-header .icon-btn:hover {
+        background: rgba(7, 94, 84, 0.1);
+    }
+
+    .messages-container {
+        flex: 1;
+        overflow-y: auto;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        background: #efeae2;
+    }
+
+    .message {
+        display: flex;
+        width: 100%;
+    }
+
+    .message.received {
+        justify-content: flex-end;
+    }
+
+    .message.sent {
+        justify-content: flex-start;
+    }
+
+    .message-bubble {
+        max-width: min(75%, 520px);
+        padding: 10px 14px;
+        border-radius: 16px;
+        box-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.12);
+        background: #ffffff;
+        color: rgba(17, 17, 17, 0.9);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        direction: rtl;
+        text-align: right;
+        margin-inline: 8px;
+    }
+
+    .message.sent .message-bubble {
+        background: var(--wa-bubble-sent, linear-gradient(135deg, #DCF8C6 0%, #CDEDC1 100%));
+        border-top-left-radius: 4px;
+    }
+
+    .message.received .message-bubble {
+        border-top-right-radius: 4px;
+    }
+
+    .message-time {
+        font-size: 11px;
+        color: rgba(17, 17, 17, 0.55);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        justify-content: flex-end;
+    }
+
+    .message-input-container {
+        background: #f0f2f5;
+        padding: 12px 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border-top: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    .message-input-container .icon-btn {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        border: none;
+        background: rgba(7, 94, 84, 0.08);
+        color: rgba(7, 94, 84, 0.8);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background 0.2s ease;
+    }
+
+    .message-input-container .icon-btn:hover {
+        background: rgba(7, 94, 84, 0.16);
+    }
+
+    .message-input-container input[type="text"] {
+        flex: 1;
+        border: none;
+        border-radius: 24px;
+        padding: 12px 16px;
+        font-size: 14px;
+        background: #ffffff;
+        outline: none;
+    }
+
+    .message-input-container .send-btn {
+        border: none;
+        background: var(--wa-color-accent, #25D366);
+        color: #fff;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .message-input-container .send-btn:disabled {
+        background: rgba(7, 94, 84, 0.25);
+        cursor: not-allowed;
+    }
+
     /* إخفاء navigation bar في صفحة الدردشة على الموبايل */
     @media (max-width: 768px) {
         body {
@@ -18,14 +321,17 @@
         .whatsapp-container.chat-room-page {
             height: 100vh;
             height: 100dvh;
+            flex-direction: column;
+            direction: rtl;
         }
         
         .whatsapp-container.chat-room-page .chat-list-panel {
             display: none !important;
         }
-        
+
         .whatsapp-container.chat-room-page .chat-window-panel {
             display: flex !important;
+            width: 100%;
         }
     }
 
@@ -493,8 +799,7 @@
 {% block content %}
 <div class="whatsapp-container chat-room-page" data-page="chat-room">
     <!-- Chat List Panel - مخفي على الموبايل -->
-    <div class="chat-list-panel" style="display: none;">
-        <!-- Header -->
+    <div class="chat-list-panel">
         <div class="chat-list-header">
             <div class="header-left">
                 <div class="avatar">
@@ -504,70 +809,47 @@
                         <i class="fas fa-user"></i>
                     {% endif %}
                 </div>
-                <span style="font-weight: 500; font-size: 18px;">عرب شات</span>
+                <span style="font-weight: 600; font-size: 18px;">عرب شات</span>
             </div>
             <div class="header-right">
-                <button class="icon-btn" title="الحالة">
-                    <i class="fas fa-circle"></i>
-                </button>
-                <button class="icon-btn" title="المحادثات الجديدة">
-                    <i class="fas fa-comment"></i>
-                </button>
+                <a href="{% url 'stories' %}" class="icon-btn" title="التحديثات">
+                    <i class="fas fa-circle-notch"></i>
+                </a>
+                <a href="{% url 'private_chats' %}" class="icon-btn" title="كل الدردشات">
+                    <i class="fas fa-comments"></i>
+                </a>
                 <a href="{% url 'settings' %}" class="icon-btn" title="الإعدادات">
-                    <i class="fas fa-ellipsis-v"></i>
+                    <i class="fas fa-cog"></i>
                 </a>
             </div>
         </div>
 
-        <!-- Search -->
-        <div class="search-container">
-            <div style="position: relative;">
-                <i class="fas fa-search search-icon"></i>
-                <input type="text" class="search-box" placeholder="بحث أو محادثة جديدة">
-            </div>
+        <div class="chat-list-search">
+            <label class="chat-list-search__field" for="chatSidebarSearchInput">
+                <span class="chat-list-search__icon app-icon app-icon--search" aria-hidden="true"></span>
+                <input type="text" id="chatSidebarSearchInput" class="chat-list-search__input" placeholder="بحث أو بدء محادثة جديدة">
+            </label>
         </div>
 
-        <!-- Chat List -->
-        <div class="chat-list">
-            <a href="{% url 'private_chats' %}" class="chat-item active">
-                <div class="avatar" style="position: relative;">
-                    {% for member in room.members.all %}
-                        {% if member != user %}
-                            {% if member.profile.avatar %}
-                                <img src="{{ member.profile.avatar.url }}" alt="{{ member.username }}">
-                            {% else %}
-                                <i class="fas fa-user"></i>
-                            {% endif %}
-                            {% if member.profile.is_online %}
-                                <span class="online-indicator"></span>
-                            {% endif %}
-                        {% endif %}
-                    {% endfor %}
-                </div>
-                <div class="chat-info">
-                    <div class="chat-header">
-                        <span class="chat-name">
-                            {% for member in room.members.all %}
-                                {% if member != user %}
-                                    {{ member.username }}
-                                {% endif %}
-                            {% endfor %}
-                        </span>
-                        <span class="chat-time">
-                            {% if messages.last %}
-                                {{ messages.last.created_at|date:"H:i" }}
-                            {% endif %}
-                        </span>
-                    </div>
-                    <div class="chat-preview">
-                        {% if messages.last %}
-                            <span>{{ messages.last.content|truncatewords:15 }}</span>
-                        {% else %}
-                            <span style="font-style: italic; opacity: 0.7;">لا توجد رسائل</span>
-                        {% endif %}
-                    </div>
-                </div>
-            </a>
+        <div class="chat-list-scroll" id="chatSidebarList">
+            {% if sidebar_pinned_threads %}
+                <div class="chat-list-section-title">المثبّتة</div>
+                {% for thread in sidebar_pinned_threads %}
+                    {% include 'chat/includes/chat_thread.html' with thread=thread %}
+                {% endfor %}
+            {% endif %}
+
+            {% if sidebar_regular_threads %}
+                <div class="chat-list-section-title">الدردشات</div>
+                {% for thread in sidebar_regular_threads %}
+                    {% include 'chat/includes/chat_thread.html' with thread=thread %}
+                {% endfor %}
+            {% endif %}
+
+            {% if not sidebar_pinned_threads and not sidebar_regular_threads %}
+                <div class="chat-sidebar-empty">لا توجد محادثات بعد. ابدأ محادثة جديدة من خلال البحث أو إضافة الأصدقاء.</div>
+            {% endif %}
+            <div class="chat-sidebar-empty" id="chatSidebarEmptyState" hidden>لا توجد نتائج مطابقة.</div>
         </div>
     </div>
 
@@ -580,37 +862,37 @@
                     <i class="fas fa-arrow-right"></i>
                 </button>
                 <div class="avatar" style="position: relative;">
-                    {% for member in room.members.all %}
-                        {% if member != user %}
-                            {% if member.profile.avatar %}
-                                <img src="{{ member.profile.avatar.url }}" alt="{{ member.username }}">
-                            {% else %}
-                                <i class="fas fa-user"></i>
-                            {% endif %}
-                            {% if member.profile.is_online %}
-                                <span class="online-indicator"></span>
-                            {% endif %}
+                    {% if room.is_private and other_member %}
+                        {% if other_member.profile.avatar %}
+                            <img src="{{ other_member.profile.avatar.url }}" alt="{{ other_member.username }}">
+                        {% else %}
+                            <i class="fas fa-user"></i>
                         {% endif %}
-                    {% endfor %}
+                        {% if other_member.profile.is_online %}
+                            <span class="online-indicator"></span>
+                        {% endif %}
+                    {% else %}
+                        <i class="fas fa-users"></i>
+                    {% endif %}
                 </div>
                 <div class="user-info">
                     <div class="user-name">
-                        {% for member in room.members.all %}
-                            {% if member != user %}
-                                {{ member.username }}
-                            {% endif %}
-                        {% endfor %}
+                        {% if room.is_private and other_member %}
+                            {{ other_member.username }}
+                        {% else %}
+                            {{ room.name }}
+                        {% endif %}
                     </div>
                     <div class="user-status">
-                        {% for member in room.members.all %}
-                            {% if member != user %}
-                                {% if member.profile.is_online %}
-                                    متصل الآن
-                                {% else %}
-                                    آخر ظهور: {{ member.profile.last_seen|date:"H:i" }}
-                                {% endif %}
+                        {% if room.is_private and other_member %}
+                            {% if other_member.profile.is_online %}
+                                متصل الآن
+                            {% else %}
+                                آخر ظهور: {{ other_member.profile.last_seen|date:"H:i" }}
                             {% endif %}
-                        {% endfor %}
+                        {% else %}
+                            {{ room.members.count }} عضو{% if room.members.count|add:'-1' %}اً{% endif %}
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -862,6 +1144,11 @@ const filterState = {
     saturation: 120
 };
 
+const sidebarListElement = document.getElementById('chatSidebarList');
+const sidebarSearchInput = document.getElementById('chatSidebarSearchInput');
+const sidebarEmptyState = document.getElementById('chatSidebarEmptyState');
+let sidebarThreads = [];
+
 function getImageFilterCss() {
     return `brightness(${filterState.brightness}%) contrast(${filterState.contrast}%) saturate(${filterState.saturation}%)`;
 }
@@ -888,6 +1175,35 @@ function updateImageFilterPreview() {
     const img = preview.querySelector('img');
     if (img) {
         img.style.filter = getImageFilterCss();
+    }
+}
+
+function refreshSidebarThreadsCollection() {
+    sidebarThreads = sidebarListElement ? Array.from(sidebarListElement.querySelectorAll('.chat-thread')) : [];
+}
+
+function filterSidebarThreads(term) {
+    if (!sidebarThreads.length) {
+        if (sidebarEmptyState) {
+            sidebarEmptyState.hidden = true;
+        }
+        return;
+    }
+
+    const normalized = (term || '').trim().toLowerCase();
+    let visibleCount = 0;
+
+    sidebarThreads.forEach((thread) => {
+        const haystack = (thread.dataset.searchText || '').toLowerCase();
+        const shouldShow = !normalized || haystack.includes(normalized);
+        thread.style.display = shouldShow ? 'flex' : 'none';
+        if (shouldShow) {
+            visibleCount += 1;
+        }
+    });
+
+    if (sidebarEmptyState) {
+        sidebarEmptyState.hidden = visibleCount !== 0;
     }
 }
 
@@ -2156,6 +2472,16 @@ function handleTyping() {
 document.addEventListener('DOMContentLoaded', function() {
     // Scroll to bottom on load (without animation for initial load)
     scrollToBottom(false);
+    
+    refreshSidebarThreadsCollection();
+    if (sidebarSearchInput) {
+        sidebarSearchInput.addEventListener('input', (event) => filterSidebarThreads(event.target.value));
+        filterSidebarThreads(sidebarSearchInput.value || '');
+    }
+    const activeSidebarThread = sidebarListElement?.querySelector('.chat-thread--active');
+    if (activeSidebarThread) {
+        activeSidebarThread.scrollIntoView({ block: 'nearest' });
+    }
     
     const pinnedBanner = document.getElementById('pinnedMessagesBanner');
     if (pinnedBanner) {
