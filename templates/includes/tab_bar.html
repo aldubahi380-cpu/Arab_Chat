@@ -1,23 +1,24 @@
+{% load static %}
 <nav class="main-nav-menu" aria-label="شريط التبويبات السفلي">
     <a href="/chats/" class="nav-menu-item" data-route="chats">
-        <i class="fas fa-comments"></i>
+        <span class="nav-menu-icon app-icon app-icon--chats" aria-hidden="true"></span>
         <span>الدردشات</span>
     </a>
-    <a href="/stories/" class="nav-menu-item" data-route="stories">
-        <i class="fas fa-circle-notch"></i>
-        <span>الحالات</span>
-        <span class="nav-badge" id="storiesNavBadge" hidden></span>
+    <a href="/stories/" class="nav-menu-item" data-route="updates">
+        <span class="nav-menu-icon app-icon app-icon--updates" aria-hidden="true"></span>
+        <span>التحديثات</span>
+        <span class="nav-badge" id="updatesNavBadge" data-nav-badge="updates" hidden></span>
     </a>
-    <a href="/groups/" class="nav-menu-item" data-route="groups">
-        <i class="fas fa-users"></i>
+    <a href="/groups/" class="nav-menu-item" data-route="communities">
+        <span class="nav-menu-icon app-icon app-icon--communities" aria-hidden="true"></span>
         <span>المجتمعات</span>
     </a>
     <a href="/calls/" class="nav-menu-item" data-route="calls">
-        <i class="fas fa-phone-alt"></i>
+        <span class="nav-menu-icon app-icon app-icon--calls" aria-hidden="true"></span>
         <span>المكالمات</span>
     </a>
     <a href="/settings/" class="nav-menu-item" data-route="settings">
-        <i class="fas fa-cog"></i>
+        <span class="nav-menu-icon app-icon app-icon--menu" aria-hidden="true"></span>
         <span>الإعدادات</span>
     </a>
 </nav>

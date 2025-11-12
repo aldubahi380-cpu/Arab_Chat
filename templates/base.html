@@ -249,7 +249,7 @@
         (function() {
             if (typeof window.updateStoriesBadge !== 'function') {
                 window.updateStoriesBadge = function(count) {
-                    const badge = document.getElementById('storiesNavBadge');
+                    const badge = document.getElementById('updatesNavBadge') || document.getElementById('storiesNavBadge');
                     if (!badge) {
                         return;
                     }

@@ -4,24 +4,31 @@
         {% if user.is_authenticated and user.profile.avatar %}
             <img src="{{ user.profile.avatar.url }}" alt="{{ user.username }}" class="app-bar__avatar" loading="lazy">
         {% else %}
-            <span class="app-bar__avatar app-bar__avatar--placeholder">
-                <i class="fas fa-user"></i>
+            <span class="app-bar__avatar app-bar__avatar--placeholder" aria-hidden="true">
+                <span class="app-bar__avatar-icon app-icon app-icon--chats"></span>
             </span>
         {% endif %}
         <div class="app-bar__brand">
-            <span class="app-bar__brand-title">{% block app_bar_brand %}عرب شات{% endblock %}</span>
-            <span class="app-bar__brand-subtitle">{% block app_bar_subtitle %}متصل الآن{% endblock %}</span>
+            {% block app_bar_logo %}
+            <span class="app-bar__brand-logo" aria-hidden="true">
+                <span class="app-bar__brand-icon app-icon app-icon--updates"></span>
+            </span>
+            {% endblock %}
+            <div class="app-bar__brand-text">
+                <span class="app-bar__brand-title">{% block app_bar_brand %}عرب شات{% endblock %}</span>
+                <span class="app-bar__brand-subtitle">{% block app_bar_subtitle %}متصل الآن{% endblock %}</span>
+            </div>
         </div>
     </div>
     <div class="app-bar__actions">
         <button type="button" class="app-bar__action-button" title="بحث" aria-label="بحث" data-app-action="search">
-            <i class="fas fa-search"></i>
+            <span class="app-bar__action-icon app-icon app-icon--search" aria-hidden="true"></span>
         </button>
         <button type="button" class="app-bar__action-button" title="الكاميرا" aria-label="الكاميرا" data-app-action="camera">
-            <i class="fas fa-camera"></i>
+            <span class="app-bar__action-icon app-icon app-icon--camera" aria-hidden="true"></span>
         </button>
         <button type="button" class="app-bar__action-button" title="القائمة" aria-label="القائمة" data-app-action="menu">
-            <i class="fas fa-ellipsis-v"></i>
+            <span class="app-bar__action-icon app-icon app-icon--menu" aria-hidden="true"></span>
         </button>
         {% block app_bar_extra_actions %}{% endblock %}
     </div>
