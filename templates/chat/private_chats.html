@@ -13,23 +13,47 @@
     <div class="chat-search-overlay" id="chatSearchOverlay" aria-hidden="true">
         <div class="chat-search-overlay__header">
             <button type="button" class="chat-search-overlay__close" id="chatSearchClose" aria-label="إغلاق البحث">
-                <i class="fas fa-arrow-right"></i>
+                <span class="app-icon app-icon--arrow-right" aria-hidden="true"></span>
             </button>
-            <input type="text" id="chatSearchInput" class="chat-search-overlay__input" placeholder="ابحث عن اسم أو رسالة">
+            <div class="chat-search-overlay__field">
+                <span class="chat-search-overlay__field-icon app-icon app-icon--search" aria-hidden="true"></span>
+                <input type="text" id="chatSearchInput" class="chat-search-overlay__input" placeholder="ابحث عن اسم أو رسالة">
+                <button type="button" class="chat-search-overlay__clear" id="chatSearchClear" aria-label="مسح البحث" hidden>
+                    <span class="app-icon app-icon--close" aria-hidden="true"></span>
+                </button>
+            </div>
         </div>
         <div class="chat-thread-list" id="chatSearchResults"></div>
     </div>
 
+    <header class="chats-home__header">
+        <div>
+            <h1 class="chats-home__title">الدردشات</h1>
+            <p class="chats-home__subtitle">تابع أحدث المحادثات مع أصدقائك</p>
+        </div>
+    </header>
+
     <div class="chats-home__filters" role="tablist">
-        <button type="button" class="filter-chip is-active" data-filter="all">الكل</button>
-        <button type="button" class="filter-chip" data-filter="unread">غير المقروءة</button>
-        <button type="button" class="filter-chip" data-filter="pinned">المثبّتة</button>
-        <button type="button" class="filter-chip" data-filter="groups">المجتمعات</button>
+        <button type="button" class="filter-chip is-active" data-filter="all">
+            <span class="filter-chip__label">الكل</span>
+        </button>
+        <button type="button" class="filter-chip" data-filter="unread">
+            <span class="filter-chip__label">غير المقروءة</span>
+        </button>
+        <button type="button" class="filter-chip" data-filter="pinned">
+            <span class="filter-chip__label">المثبتة</span>
+        </button>
+        <button type="button" class="filter-chip" data-filter="groups">
+            <span class="filter-chip__label">المجتمعات</span>
+        </button>
     </div>
 
     {% if pinned_threads %}
-    <section class="chat-section" data-section="pinned">
-        <header class="chat-section__header">المثبتة</header>
+    <section class="chat-section chat-section--pinned" data-section="pinned">
+        <header class="chat-section__header">
+            <span class="chat-section__title">المحادثات المثبتة</span>
+            <span class="chat-section__badge">{{ pinned_threads|length }}</span>
+        </header>
         <div class="chat-thread-list" id="pinnedThreads">
             {% for thread in pinned_threads %}
                 {% include 'chat/includes/chat_thread.html' with thread=thread %}
@@ -38,8 +62,13 @@
     </section>
     {% endif %}
 
-    <section class="chat-section" data-section="chats">
-        <header class="chat-section__header">الدردشات</header>
+    <section class="chat-section chat-section--regular" data-section="chats">
+        <header class="chat-section__header">
+            <span class="chat-section__title">كل الدردشات</span>
+            {% if chat_threads %}
+            <span class="chat-section__badge">{{ chat_threads|length }}</span>
+            {% endif %}
+        </header>
         {% if chat_threads %}
         <div class="chat-thread-list" id="chatThreadsContainer">
             {% for thread in chat_threads %}
@@ -48,7 +77,7 @@
         </div>
         {% else %}
         <div class="chat-empty-state">
-            <i class="fas fa-comments"></i>
+            <span class="chat-empty-state__icon app-icon app-icon--chats" aria-hidden="true"></span>
             <h3>لا توجد محادثات بعد</h3>
             <p>ابدأ محادثة جديدة من خلال البحث أو إنشاء مجموعة.</p>
         </div>
@@ -56,7 +85,7 @@
     </section>
 
     <button class="chat-compose-fab" id="chatComposeFab" title="محادثة جديدة">
-        <i class="fas fa-edit"></i>
+        <span class="chat-compose-fab__icon app-icon app-icon--media" aria-hidden="true"></span>
     </button>
 </section>
 
@@ -66,16 +95,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const searchOverlay = document.getElementById('chatSearchOverlay');
     const searchInput = document.getElementById('chatSearchInput');
     const searchClose = document.getElementById('chatSearchClose');
+    const searchClear = document.getElementById('chatSearchClear');
     const searchResults = document.getElementById('chatSearchResults');
     const chatThreads = Array.from(document.querySelectorAll('.chat-thread'));
     const filterChips = document.querySelectorAll('.filter-chip');
     const composeFab = document.getElementById('chatComposeFab');
-
-    function escapeHtml(value) {
-        const div = document.createElement('div');
-        div.textContent = value ?? '';
-        return div.innerHTML;
-    }
 
     function toggleSearchOverlay(visible) {
         if (!searchOverlay) return;
@@ -83,17 +107,29 @@ document.addEventListener('DOMContentLoaded', function() {
             searchOverlay.classList.add('is-active');
             searchOverlay.removeAttribute('aria-hidden');
             searchInput.value = '';
+            toggleSearchClear(false);
             renderSearchResults('');
-            window.setTimeout(() => searchInput.focus(), 60);
+            window.setTimeout(() => searchInput.focus(), 50);
         } else {
             searchOverlay.classList.remove('is-active');
             searchOverlay.setAttribute('aria-hidden', 'true');
+            toggleSearchClear(false);
+        }
+    }
+
+    function toggleSearchClear(state) {
+        if (!searchClear) return;
+        if (state) {
+            searchClear.removeAttribute('hidden');
+        } else {
+            searchClear.setAttribute('hidden', 'hidden');
         }
     }
 
     function renderSearchResults(term) {
         if (!searchResults) return;
         const normalized = term.trim().toLowerCase();
+        toggleSearchClear(Boolean(normalized));
         if (!normalized) {
             searchResults.innerHTML = '';
             return;
@@ -103,7 +139,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return haystack.toLowerCase().includes(normalized);
         });
         if (!matches.length) {
-            searchResults.innerHTML = '<div class="chat-empty-state" style="padding:40px 16px;"><p>لا توجد نتائج مطابقة.</p></div>';
+            searchResults.innerHTML = '<div class="chat-empty-state chat-empty-state--inline"><p>لا توجد نتائج مطابقة.</p></div>';
             return;
         }
         const fragment = document.createDocumentFragment();
@@ -117,9 +153,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const date = new Date(value);
         if (Number.isNaN(date.getTime())) return '';
         const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const target = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-        const diffDays = Math.floor((today - target) / (1000 * 60 * 60 * 24));
+        const diffMs = now - date;
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
         if (diffDays === 0) {
             return date.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: false });
         }
@@ -131,11 +166,36 @@ document.addEventListener('DOMContentLoaded', function() {
         return date.toLocaleDateString('ar-SA', { day: '2-digit', month: '2-digit' });
     }
 
+    function mediaLabelFor(type) {
+        switch ((type || '').toLowerCase()) {
+            case 'image':
+                return 'صورة';
+            case 'video':
+                return 'فيديو';
+            case 'audio':
+                return 'صوت';
+            case 'file':
+                return 'ملف';
+            default:
+                return 'وسائط';
+        }
+    }
+
+    function applyUnreadVisualState(thread, unreadCount) {
+        if (!thread) return;
+        if (unreadCount > 0) {
+            thread.classList.add('chat-thread--unread');
+        } else {
+            thread.classList.remove('chat-thread--unread');
+        }
+    }
+
     chatThreads.forEach(thread => {
         const timeEl = thread.querySelector('.chat-time');
         if (timeEl && timeEl.dataset.time) {
             timeEl.textContent = formatChatTime(timeEl.dataset.time);
         }
+        applyUnreadVisualState(thread, parseInt(thread.dataset.unread || '0', 10));
     });
 
     filterChips.forEach(chip => {
@@ -175,6 +235,14 @@ document.addEventListener('DOMContentLoaded', function() {
     if (searchClose) {
         searchClose.addEventListener('click', () => toggleSearchOverlay(false));
     }
+    if (searchClear) {
+        searchClear.addEventListener('click', () => {
+            searchInput.value = '';
+            renderSearchResults('');
+            toggleSearchClear(false);
+            searchInput.focus();
+        });
+    }
     if (searchOverlay) {
         searchOverlay.addEventListener('click', (event) => {
             if (event.target === searchOverlay) {
@@ -204,29 +272,84 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!selector) return;
         const thread = document.querySelector(selector);
         if (!thread) return;
-        const preview = thread.querySelector('.preview-text');
+        const preview = thread.querySelector('[data-preview]');
+        const previewText = thread.querySelector('[data-preview-text]');
+        const statusContainer = thread.querySelector('[data-preview-status]');
+        const statusIcon = statusContainer ? statusContainer.querySelector('.app-icon') : null;
+        const mediaContainer = thread.querySelector('[data-preview-media]');
+        const mediaLabel = mediaContainer ? mediaContainer.querySelector('.preview-media-label') : null;
+        const editedTag = thread.querySelector('.message-edited-tag');
         const timeEl = thread.querySelector('.chat-time');
-        const unreadBadge = thread.querySelector('.unread-badge');
+        const unreadBadge = thread.querySelector('[data-unread-badge]');
         if (payload.last_message) {
-            const isMine = payload.last_message.sender_id === userId;
-            const icon = isMine ? '<i class=\"fas fa-check-double\" aria-hidden=\"true\"></i>' : '';
-            const content = (payload.last_message.content || '').slice(0, 64);
-            if (preview) {
-                preview.innerHTML = `${icon} ${escapeHtml(content)}`;
+            const message = payload.last_message;
+            const isMine = message.sender_id === userId;
+            const messageType = (message.message_type || 'text').toLowerCase();
+            const isDeleted = Boolean(message.is_deleted);
+            const isEdited = Boolean(message.is_edited);
+
+            thread.dataset.lastMessageId = message.id || '';
+            thread.dataset.lastMessageType = messageType;
+            thread.dataset.lastMessageSender = isMine ? 'self' : 'other';
+            thread.dataset.lastMessageRead = isMine ? String(Boolean(message.is_read)) : (payload.unread_count > 0 ? 'false' : 'true');
+
+            if (timeEl && message.created_at) {
+                timeEl.dataset.time = message.created_at;
+                timeEl.textContent = formatChatTime(message.created_at);
             }
-            if (timeEl && payload.last_message.created_at) {
-                timeEl.dataset.time = payload.last_message.created_at;
-                timeEl.textContent = formatChatTime(payload.last_message.created_at);
+
+            if (preview) {
+                if (isMine && statusContainer && statusIcon) {
+                    statusIcon.classList.remove('app-icon--status-seen', 'app-icon--status-sent');
+                    statusIcon.classList.add(message.is_read ? 'app-icon--status-seen' : 'app-icon--status-sent');
+                    statusContainer.hidden = false;
+                } else if (statusContainer) {
+                    if (statusIcon) {
+                        statusIcon.classList.remove('app-icon--status-seen');
+                        statusIcon.classList.add('app-icon--status-sent');
+                    }
+                    statusContainer.hidden = true;
+                }
+
+                if (mediaContainer && mediaLabel) {
+                    if (messageType !== 'text') {
+                        mediaLabel.textContent = mediaLabelFor(messageType);
+                        mediaContainer.hidden = false;
+                    } else {
+                        mediaContainer.hidden = true;
+                    }
+                }
+
+                if (previewText) {
+                    const content = isDeleted ? 'رسالة محذوفة' : (message.content || '');
+                    previewText.textContent = content.slice(0, 140);
+                    previewText.classList.remove('preview-text-content--empty');
+                }
+
+                if (editedTag) {
+                    if (isEdited) {
+                        editedTag.classList.add('visible');
+                    } else {
+                        editedTag.classList.remove('visible');
+                    }
+                }
+
+                const baseSearch = thread.dataset.searchBase || '';
+                const previewValue = previewText ? previewText.textContent || '' : '';
+                thread.dataset.searchText = `${baseSearch} ${previewValue}`.trim();
             }
         }
         if (typeof payload.unread_count === 'number' && unreadBadge) {
             if (payload.unread_count > 0) {
                 unreadBadge.textContent = payload.unread_count;
-                unreadBadge.style.display = 'inline-flex';
+                unreadBadge.removeAttribute('hidden');
                 thread.dataset.unread = payload.unread_count;
+                applyUnreadVisualState(thread, payload.unread_count);
             } else {
-                unreadBadge.style.display = 'none';
+                unreadBadge.textContent = '';
+                unreadBadge.setAttribute('hidden', 'hidden');
                 thread.dataset.unread = 0;
+                applyUnreadVisualState(thread, 0);
             }
         }
     }

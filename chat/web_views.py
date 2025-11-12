@@ -165,6 +165,49 @@ def private_chats_view(request):
     from django.db.models import Count
     
     user = request.user
+
+    MEDIA_LABELS = {
+        'image': 'صورة',
+        'video': 'فيديو',
+        'audio': 'رسالة صوتية',
+        'file': 'ملف',
+    }
+
+    MEDIA_ICON_CLASSES = {
+        'image': 'app-icon--media-image',
+        'video': 'app-icon--media-video',
+        'audio': 'app-icon--media-audio',
+        'file': 'app-icon--media-file',
+    }
+
+    def build_preview_text(message):
+        if not message:
+            return ''
+        if message.is_deleted:
+            return 'تم حذف هذه الرسالة'
+        content = (message.content or '').strip()
+        if message.message_type == 'text':
+            return content
+        label = MEDIA_LABELS.get(message.message_type, 'محتوى')
+        if content:
+            snippet = content[:70]
+            if len(content) > 70:
+                snippet = f"{snippet.rstrip()}…"
+            return f"{label} · {snippet}"
+        return label
+
+    def resolve_delivery_status(message, partner_id):
+        if not message or message.sender_id != user.id:
+            return None
+        if message.is_read:
+            return 'read'
+        try:
+            read_by_ids = set(message.read_by.values_list('user_id', flat=True))
+        except Exception:
+            read_by_ids = set()
+        if partner_id in read_by_ids:
+            return 'read'
+        return 'sent'
     
     # الحصول على جميع المستخدمين الذين تواصل معهم المستخدم
     recent_contacts = RecentContact.objects.filter(
@@ -188,7 +231,7 @@ def private_chats_view(request):
         last_message = None
         unread_count = 0
         if room:
-            last_message = Message.objects.filter(room=room).order_by('-created_at').first()
+            last_message = Message.objects.filter(room=room).select_related('sender').order_by('-created_at').first()
             unread_count = Message.objects.filter(
                 room=room
             ).exclude(
@@ -200,6 +243,12 @@ def private_chats_view(request):
         except UserProfile.DoesNotExist:
             contact_profile = None
         
+        preview_text = build_preview_text(last_message)
+        message_type = last_message.message_type if last_message else None
+        delivery_status = resolve_delivery_status(last_message, contact_user.id if last_message else None)
+        last_activity = (last_message.created_at if last_message else contact.last_message_time)
+        media_icon_class = MEDIA_ICON_CLASSES.get(message_type)
+
         contacts_data.append({
             'contact_user': contact_user,
             'contact_profile': contact_profile,
@@ -211,6 +260,18 @@ def private_chats_view(request):
             'is_pinned': contact.is_pinned,
             'pinned_at': contact.pinned_at,
             'is_muted': False,
+            'search_text': f"{contact_user.username} {preview_text}".strip(),
+            'last_activity_iso': last_activity.isoformat() if last_activity else '',
+            'last_message_meta': {
+                'is_mine': bool(last_message and last_message.sender_id == user.id),
+                'status': delivery_status,
+                'status_icon_class': 'app-icon--status-seen' if delivery_status == 'read' else 'app-icon--status-sent' if delivery_status else '',
+                'media_icon_class': media_icon_class or '',
+                'media_label': MEDIA_LABELS.get(message_type, '') if message_type in MEDIA_LABELS else '',
+                'message_type': message_type or '',
+                'preview_text': preview_text,
+            },
+            'thread_kind': (room.room_type if room and room.room_type else 'private') if room else 'private',
         })
     
     pinned_threads = sorted(

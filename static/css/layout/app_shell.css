@@ -159,6 +159,11 @@ body.app-shell-body {
     -webkit-mask-image: url('../../icons/wa/menu.svg');
 }
 
+.app-icon--arrow-right {
+    mask-image: url('../../icons/wa/arrow-right.svg');
+    -webkit-mask-image: url('../../icons/wa/arrow-right.svg');
+}
+
 .app-icon--chats {
     mask-image: url('../../icons/wa/chats.svg');
     -webkit-mask-image: url('../../icons/wa/chats.svg');
@@ -177,6 +182,46 @@ body.app-shell-body {
 .app-icon--calls {
     mask-image: url('../../icons/wa/calls.svg');
     -webkit-mask-image: url('../../icons/wa/calls.svg');
+}
+
+.app-icon--status-sent {
+    mask-image: url('../../icons/wa/status-sent.svg');
+    -webkit-mask-image: url('../../icons/wa/status-sent.svg');
+}
+
+.app-icon--status-seen {
+    mask-image: url('../../icons/wa/status-seen.svg');
+    -webkit-mask-image: url('../../icons/wa/status-seen.svg');
+}
+
+.app-icon--media {
+    mask-image: url('../../icons/wa/media.svg');
+    -webkit-mask-image: url('../../icons/wa/media.svg');
+}
+
+.app-icon--media-image {
+    mask-image: url('../../icons/wa/media-image.svg');
+    -webkit-mask-image: url('../../icons/wa/media-image.svg');
+}
+
+.app-icon--media-video {
+    mask-image: url('../../icons/wa/media-video.svg');
+    -webkit-mask-image: url('../../icons/wa/media-video.svg');
+}
+
+.app-icon--media-audio {
+    mask-image: url('../../icons/wa/media-audio.svg');
+    -webkit-mask-image: url('../../icons/wa/media-audio.svg');
+}
+
+.app-icon--media-file {
+    mask-image: url('../../icons/wa/media-file.svg');
+    -webkit-mask-image: url('../../icons/wa/media-file.svg');
+}
+
+.app-icon--pin {
+    mask-image: url('../../icons/wa/pin.svg');
+    -webkit-mask-image: url('../../icons/wa/pin.svg');
 }
 
 .app-bar__avatar-icon,

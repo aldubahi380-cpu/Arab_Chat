@@ -1,14 +1,17 @@
 {% load static %}
-{% with room=thread.room contact=thread.contact_user last_message=thread.last_message %}
+{% with room=thread.room contact=thread.contact_user last_message=thread.last_message meta=thread.last_message_meta %}
 <a href="{% if room %}{% url 'chat_room' room.id %}{% else %}{% url 'start_chat' contact.id %}{% endif %}"
-   class="chat-thread chat-item"
+   class="chat-thread chat-item{% if thread.unread_count|default:0 > 0 %} chat-thread--unread{% endif %}"
    data-thread-id="{{ thread.room.id|default:thread.contact_user.id }}"
    data-room-id="{% if room %}{{ room.id }}{% endif %}"
    data-user-id="{{ contact.id }}"
    data-unread="{{ thread.unread_count|default:0 }}"
-   data-thread-kind="{% if room %}{{ room.room_type|default:'private' }}{% else %}private{% endif %}"
+    data-thread-kind="{{ thread.thread_kind|default:'private' }}"
    data-pinned="{{ thread.is_pinned|yesno:'true,false' }}"
-   data-search-text="{{ contact.username }} {% if last_message %}{{ last_message.content|default:'' }}{% endif %}">
+   data-search-text="{{ thread.search_text|default:contact.username }}"
+   data-last-message-type="{{ meta.message_type|default:'' }}"
+   data-last-message-status="{{ meta.status|default:'' }}"
+   data-last-activity="{{ thread.last_activity_iso|default:'' }}">
     <div class="chat-thread__avatar">
         {% if thread.contact_profile and thread.contact_profile.avatar %}
             <img src="{{ thread.contact_profile.avatar.url }}" alt="{{ contact.username }}" loading="lazy">
@@ -24,38 +27,54 @@
     <div class="chat-thread__content">
         <div class="chat-thread__row">
             <span class="chat-name">{{ contact.username }}</span>
-            <span class="chat-time" data-time="{% if last_message %}{{ last_message.created_at|date:'c' }}{% else %}{{ thread.last_message_time|date:'c' }}{% endif %}">
+            <span class="chat-time" data-time="{{ thread.last_activity_iso|default:'' }}">
                 {% if last_message %}
                     {{ last_message.created_at|date:"H:i" }}
-                {% else %}
+                {% elif thread.last_message_time %}
                     {{ thread.last_message_time|date:"H:i" }}
                 {% endif %}
             </span>
         </div>
         <div class="chat-thread__row chat-thread__row--preview">
-            <span class="preview-text">
-                {% if last_message %}
-                    {% if last_message.sender == user %}
-                        <i class="fas fa-check-double" aria-hidden="true"></i>
+            <span class="preview-text" data-preview>
+                <span class="preview-indicator preview-indicator--status" data-preview-status{% if not meta.is_mine or not meta.status %} hidden{% endif %}>
+                    <span class="app-icon {% if meta.status == 'read' %}app-icon--status-seen chat-status-icon--read{% else %}app-icon--status-sent{% endif %}"
+                          data-role="status-icon"
+                          aria-hidden="true"></span>
+                </span>
+                <span class="preview-indicator preview-indicator--media" data-preview-media{% if not meta.media_icon_class %} hidden{% endif %}>
+                    <span class="app-icon {% if meta.media_icon_class %}{{ meta.media_icon_class }}{% else %}app-icon--media{% endif %}"
+                          data-role="media-icon"
+                          aria-hidden="true"></span>
+                    <span class="preview-media-label" data-role="media-label">
+                        {% if meta.media_label %}
+                            {{ meta.media_label }}
+                        {% else %}
+                            وسائط
+                        {% endif %}
+                    </span>
+                </span>
+                <span class="preview-text-content{% if not meta.preview_text %} preview-text-content--empty{% endif %}" data-preview-text>
+                    {% if meta.preview_text %}
+                        {{ meta.preview_text|truncatechars:42 }}
+                    {% else %}
+                        ابدأ المحادثة
                     {% endif %}
-                    {% if last_message.message_type != 'text' %}
-                        <i class="fas fa-paperclip" aria-hidden="true"></i>
-                    {% endif %}
-                    {{ last_message.content|truncatewords:18|default:"محتوى غير متاح" }}
-                {% else %}
-                    <span class="chat-start-hint">ابدأ المحادثة</span>
-                {% endif %}
+                </span>
+                <span class="message-edited-tag{% if last_message and last_message.is_edited %} visible{% endif %}">معدل</span>
             </span>
         </div>
     </div>
     <div class="chat-thread__meta">
         {% if thread.unread_count > 0 %}
-            <span class="unread-badge">{{ thread.unread_count }}</span>
+            <span class="unread-badge" data-unread-badge>{{ thread.unread_count }}</span>
+        {% else %}
+            <span class="unread-badge" data-unread-badge hidden></span>
         {% endif %}
         {% if thread.is_pinned %}
-            <i class="fas fa-thumbtack chat-thread__pin" aria-hidden="true"></i>
+            <span class="chat-thread__pin app-icon app-icon--pin" aria-hidden="true"></span>
         {% endif %}
     </div>
-</a>
+    </a>
 {% endwith %}
 
