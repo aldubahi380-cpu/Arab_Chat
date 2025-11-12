@@ -10,6 +10,7 @@ from django.views.decorators.http import require_http_methods, require_GET
 from django.utils import timezone
 from rest_framework.authtoken.models import Token
 from .models import ChatRoom, Message, Friend, FriendRequest, Story, Contact, UserProfile, OTPVerification, SessionDevice
+from .stories_views import build_channels_context_for_user
 from django.db.models import Q, Count, Max
 from django.conf import settings
 from django.contrib.staticfiles.storage import staticfiles_storage
@@ -558,9 +559,13 @@ def stories_view(request):
         expires_at__gt=timezone.now()
     ).select_related('user')
     
+    channels_context = build_channels_context_for_user(user)
+
     context = {
         'my_stories': my_stories,
         'friends_stories': friends_stories,
+        'channels_following': channels_context['following'],
+        'channels_suggested': channels_context['suggested'],
     }
     return render_spa(request, 'chat/stories.html', context)
 

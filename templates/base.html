@@ -281,9 +281,11 @@
                             }
                             return response.json();
                         }).then(data => {
-                            const badgeCount = data?.badge_count ?? 0;
-                            window.updateStoriesBadge(badgeCount);
-                            return badgeCount;
+                            const storiesBadge = data?.badge_count ?? 0;
+                            const channelsBadge = data?.channel_badge_count ?? 0;
+                            const totalBadge = storiesBadge + channelsBadge;
+                            window.updateStoriesBadge(totalBadge);
+                            return totalBadge;
                         }).catch(error => {
                             console.warn('Unable to refresh stories badge:', error);
                             return null;
@@ -465,8 +467,15 @@
                     }
                     return response.json();
                 }).then(data => {
-                    const badgeCount = data?.badge_count ?? 0;
-                    window.updateStoriesBadge(badgeCount);
+                    const storiesBadge = data?.badge_count ?? 0;
+                    const channelsBadge = data?.channel_badge_count ?? 0;
+                    const totalBadge = storiesBadge + channelsBadge;
+                    window.updateStoriesBadge(totalBadge);
+                    return totalBadge;
+                    const storiesBadge = data?.badge_count ?? 0;
+                    const channelsBadge = data?.channel_badge_count ?? 0;
+                    const totalBadge = storiesBadge + channelsBadge;
+                    window.updateStoriesBadge(totalBadge);
                     return badgeCount;
                 }).catch(error => {
                     console.warn('Unable to refresh stories badge:', error);

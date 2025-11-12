@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
+{% load static humanize %}
 
-{% block title %}الاستوريات - عرب شات{% endblock %}
+{% block title %}التحديثات - عرب شات{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -49,6 +50,218 @@
         display: flex;
         align-items: center;
         gap: 12px;
+    }
+
+    .updates-tabs {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 28px 0;
+    }
+
+    .updates-tab {
+        border: none;
+        background: rgba(7, 94, 84, 0.08);
+        color: var(--whatsapp-teal);
+        font-weight: 600;
+        border-radius: 18px;
+        padding: 8px 16px;
+        cursor: pointer;
+        transition: background var(--transition-fast), color var(--transition-fast);
+    }
+
+    .updates-tab.is-active {
+        background: var(--whatsapp-green);
+        color: var(--whatsapp-white);
+        box-shadow: 0 6px 16px rgba(37, 211, 102, 0.25);
+    }
+
+    .updates-panel {
+        padding: 0 28px 20px;
+    }
+
+    .updates-panel[hidden] {
+        display: none !important;
+    }
+
+    .channels-section {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .channels-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+    }
+
+    .channels-header h5 {
+        margin: 0;
+        font-weight: 700;
+        color: var(--whatsapp-teal);
+    }
+
+    .channels-header__subtitle {
+        margin: 6px 0 0;
+        color: rgba(17, 17, 17, 0.6);
+        font-size: 14px;
+    }
+
+    .channels-discover-btn {
+        background: var(--whatsapp-green);
+        color: var(--whatsapp-white);
+        border: none;
+        border-radius: 999px;
+        padding: 10px 18px;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 8px 20px rgba(37, 211, 102, 0.25);
+        transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    }
+
+    .channels-discover-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 12px 24px rgba(37, 211, 102, 0.32);
+    }
+
+    .channels-group {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
+    }
+
+    .channels-list {
+        background: var(--whatsapp-white);
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(7, 94, 84, 0.08);
+        padding: 20px;
+        box-shadow: var(--shadow-sm);
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .channels-list__header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .channels-list__header h6 {
+        margin: 0;
+        font-weight: 700;
+        color: rgba(17, 17, 17, 0.85);
+    }
+
+    .channels-list__header small {
+        color: rgba(17, 17, 17, 0.5);
+        font-weight: 500;
+    }
+
+    .channel-card-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .channel-card {
+        position: relative;
+        background: rgba(7, 94, 84, 0.04);
+        border-radius: 16px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        border: 1px solid rgba(7, 94, 84, 0.08);
+    }
+
+    .channel-card__main {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: flex-start;
+    }
+
+    .channel-card__info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .channel-card__name {
+        margin: 0 0 6px;
+        font-weight: 700;
+        color: rgba(17, 17, 17, 0.9);
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .channel-card__description {
+        margin: 0;
+        color: rgba(17, 17, 17, 0.65);
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    .channel-card__badge {
+        background: rgba(37, 211, 102, 0.16);
+        color: var(--whatsapp-teal);
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .channel-card__action {
+        border: none;
+        border-radius: 12px;
+        padding: 8px 14px;
+        font-weight: 600;
+        cursor: pointer;
+        background: rgba(7, 94, 84, 0.12);
+        color: var(--whatsapp-teal);
+        transition: background var(--transition-fast), color var(--transition-fast);
+    }
+
+    .channel-card__action:hover {
+        background: rgba(7, 94, 84, 0.18);
+    }
+
+    .channel-card__action--primary {
+        background: var(--whatsapp-green);
+        color: var(--whatsapp-white);
+        box-shadow: 0 8px 18px rgba(37, 211, 102, 0.28);
+    }
+
+    .channel-card__meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        font-size: 13px;
+        color: rgba(17, 17, 17, 0.55);
+    }
+
+    .channel-card__unread-badge {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        background: var(--whatsapp-green);
+        color: #fff;
+        border-radius: 12px;
+        padding: 4px 10px;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .channels-empty {
+        padding: 32px 16px;
+        text-align: center;
+        color: rgba(17, 17, 17, 0.55);
+        border: 1px dashed rgba(7, 94, 84, 0.2);
+        border-radius: 12px;
     }
 
     .my-story-section {
@@ -694,9 +907,25 @@
             padding: 20px 12px 70px;
         }
 
-        .stories-header, .my-story-section, .stories-strip-wrapper {
+        .stories-header,
+        .my-story-section,
+        .stories-strip-wrapper,
+        .updates-panel {
             padding-left: 20px;
             padding-right: 20px;
+        }
+
+        .updates-tabs {
+            padding-inline: 20px;
+        }
+
+        .channels-group {
+            grid-template-columns: 1fr;
+        }
+
+        .channels-discover-btn {
+            width: 100%;
+            justify-content: center;
         }
 
         .my-story-card {
@@ -735,6 +964,14 @@
             padding: 18px 16px;
         }
 
+        .updates-tabs {
+            padding: 12px 16px 0;
+        }
+
+        .updates-panel {
+            padding-inline: 16px;
+        }
+
         .my-story-section {
             padding: 16px;
         }
@@ -761,6 +998,20 @@
         .story-nav-zone {
             width: 35%;
         }
+
+        .channel-card {
+            padding: 14px;
+        }
+
+        .channel-card__main {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .channel-card__action {
+            width: 100%;
+        }
     }
 </style>
 {% endblock %}
@@ -775,7 +1026,7 @@
         </div>
 
         <div class="stories-header">
-            <h4><i class="fas fa-circle-notch"></i> الاستوريات (Stories)</h4>
+            <h4><i class="fas fa-circle-notch"></i> التحديثات (Updates)</h4>
             <div class="header-meta">
                 <i class="fas fa-clock"></i>
                 <span>
@@ -785,62 +1036,171 @@
             </div>
         </div>
 
+        <div class="updates-tabs" role="tablist">
+            <button type="button" class="updates-tab is-active" data-updates-tab="stories">الحالات</button>
+            <button type="button" class="updates-tab" data-updates-tab="channels">القنوات</button>
+        </div>
+
         <div class="stories-alert" id="storiesAlert"></div>
 
-        <section class="my-story-section">
-            <div class="my-story-card" id="myStoryCard" data-has-story="false">
-                <div class="my-story-thumbnail">
-                    <div class="story-ring has-unseen" id="myStoryRing">
-                        <div class="story-avatar" id="myStoryAvatar">
-                            <i class="fas fa-user-circle"></i>
-                            <div class="my-story-preview d-none" id="myStoryPreview"></div>
+        <div class="updates-panel updates-panel--stories" data-updates-panel="stories">
+            <section class="my-story-section">
+                <div class="my-story-card" id="myStoryCard" data-has-story="false">
+                    <div class="my-story-thumbnail">
+                        <div class="story-ring has-unseen" id="myStoryRing">
+                            <div class="story-avatar" id="myStoryAvatar">
+                                <i class="fas fa-user-circle"></i>
+                                <div class="my-story-preview d-none" id="myStoryPreview"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="my-story-status">
+                        <h5>حالتي (My Story)</h5>
+                        <p id="myStoryStatusText">أضف استوري لتشارك أصدقائك اللحظة.</p>
+                        <small id="myStoryTimestamp">لم يتم النشر بعد</small>
+                    </div>
+                    <div class="my-story-actions">
+                        <button class="add-story-btn" id="addStoryButton">
+                            <i class="fas fa-plus"></i>
+                            إضافة استوري
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm d-none" id="viewMyStoriesButton">
+                            عرض حالتي
+                        </button>
+                    </div>
+                </div>
+                <div class="stories-toolbar">
+                    <div class="toolbar-info">
+                        <i class="fas fa-shield-alt me-2 text-success"></i>
+                        <span>يستطيع أصدقاؤك مشاهدة حالتك لمدة 24 ساعة فقط.</span>
+                    </div>
+                    <button type="button" id="refreshStoriesButton">
+                        <i class="fas fa-sync-alt"></i>
+                        تحديث
+                    </button>
+                </div>
+            </section>
+
+            <div class="stories-divider"></div>
+
+            <section class="stories-strip-wrapper">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <h5 class="stories-strip-heading">استوريات الأصدقاء</h5>
+                    <small class="text-muted" id="storiesCounterText"></small>
+                </div>
+                <div class="stories-strip" id="friendsStoriesStrip"></div>
+                <div class="stories-empty" id="storiesEmptyState">
+                    <strong>لا توجد استوريات جديدة الآن</strong>
+                    <span>عند نشر أصدقائك لاستوريات جديدة ستظهر هنا مباشرة.</span>
+                    <a href="javascript:void(0)" class="cta-link" id="emptyAddStoryLink">
+                        <i class="fas fa-plus-circle"></i>
+                        كن أول من يشارك قصة اليوم!
+                    </a>
+                </div>
+            </section>
+        </div>
+
+        <div class="updates-panel updates-panel--channels" data-updates-panel="channels" hidden>
+            <section class="channels-section">
+                <div class="channels-header">
+                    <div>
+                        <h5>القنوات التي تتابعها</h5>
+                        <p class="channels-header__subtitle">اطّلع على أحدث المنشورات من القنوات التي تهتم بها.</p>
+                    </div>
+                    <button type="button" class="channels-discover-btn" id="discoverChannelsButton">
+                        استكشاف القنوات
+                    </button>
+                </div>
+                <div class="channels-group">
+                    <div class="channels-list">
+                        <div class="channels-list__header">
+                            <h6>تتابعها الآن</h6>
+                            <small id="channelsFollowingCounter"></small>
+                        </div>
+                        <div class="channel-card-list" id="channelsFollowingList">
+                            {% if channels_following %}
+                                {% for channel in channels_following %}
+                                    <article class="channel-card" data-channel-id="{{ channel.id }}" data-channel-unread="{{ channel.unread_posts|default:0 }}">
+                                        <div class="channel-card__main">
+                                            <div class="channel-card__info">
+                                                <h6 class="channel-card__name">
+                                                    {{ channel.name }}
+                                                    {% if channel.is_verified %}
+                                                        <span class="channel-card__badge">موثّق</span>
+                                                    {% endif %}
+                                                </h6>
+                                                <p class="channel-card__description">{{ channel.description }}</p>
+                                            </div>
+                                            <button type="button"
+                                                    class="channel-card__action"
+                                                    data-action="toggle-follow"
+                                                    data-channel-id="{{ channel.id }}"
+                                                    data-following="true">
+                                                إلغاء المتابعة
+                                            </button>
+                                        </div>
+                                        <div class="channel-card__meta">
+                                            <span class="channel-card__meta-item">
+                                                {{ channel.followers|intcomma }} متابع
+                                            </span>
+                                            <span class="channel-card__meta-item">
+                                                آخر تحديث {{ channel.last_post_at|date:"Y-m-d H:i" }}
+                                            </span>
+                                        </div>
+                                        {% if channel.unread_posts %}
+                                            <span class="channel-card__unread-badge">{{ channel.unread_posts }}</span>
+                                        {% endif %}
+                                    </article>
+                                {% endfor %}
+                            {% else %}
+                                <div class="channels-empty">لم تبدأ بمتابعة أي قناة بعد.</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="channels-list channels-list--suggested">
+                        <div class="channels-list__header">
+                            <h6>مقترحة لك</h6>
+                        </div>
+                        <div class="channel-card-list channel-card-list--suggested" id="channelsSuggestedList">
+                            {% if channels_suggested %}
+                                {% for channel in channels_suggested %}
+                                    <article class="channel-card channel-card--suggested" data-channel-id="{{ channel.id }}">
+                                        <div class="channel-card__main">
+                                            <div class="channel-card__info">
+                                                <h6 class="channel-card__name">
+                                                    {{ channel.name }}
+                                                    {% if channel.is_verified %}
+                                                        <span class="channel-card__badge">موثّق</span>
+                                                    {% endif %}
+                                                </h6>
+                                                <p class="channel-card__description">{{ channel.description }}</p>
+                                            </div>
+                                            <button type="button"
+                                                    class="channel-card__action channel-card__action--primary"
+                                                    data-action="toggle-follow"
+                                                    data-channel-id="{{ channel.id }}"
+                                                    data-following="false">
+                                                متابعة
+                                            </button>
+                                        </div>
+                                        <div class="channel-card__meta">
+                                            <span class="channel-card__meta-item">
+                                                {{ channel.followers|intcomma }} متابع
+                                            </span>
+                                            <span class="channel-card__meta-item">
+                                                آخر نشاط {{ channel.last_post_at|date:"Y-m-d H:i" }}
+                                            </span>
+                                        </div>
+                                    </article>
+                                {% endfor %}
+                            {% else %}
+                                <div class="channels-empty">لا توجد اقتراحات حالياً.</div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
-                <div class="my-story-status">
-                    <h5>حالتي (My Story)</h5>
-                    <p id="myStoryStatusText">أضف استوري لتشارك أصدقائك اللحظة.</p>
-                    <small id="myStoryTimestamp">لم يتم النشر بعد</small>
-                </div>
-                <div class="my-story-actions">
-                    <button class="add-story-btn" id="addStoryButton">
-                        <i class="fas fa-plus"></i>
-                        إضافة استوري
-                    </button>
-                    <button class="btn btn-outline-secondary btn-sm d-none" id="viewMyStoriesButton">
-                        عرض حالتي
-                    </button>
-                </div>
-                                        </div>
-            <div class="stories-toolbar">
-                <div class="toolbar-info">
-                    <i class="fas fa-shield-alt me-2 text-success"></i>
-                    <span>يستطيع أصدقاؤك مشاهدة حالتك لمدة 24 ساعة فقط.</span>
-                                    </div>
-                <button type="button" id="refreshStoriesButton">
-                    <i class="fas fa-sync-alt"></i>
-                    تحديث
-                </button>
-                                </div>
-        </section>
-
-        <div class="stories-divider"></div>
-
-        <section class="stories-strip-wrapper">
-            <div class="d-flex align-items-center justify-content-between mb-3">
-                <h5 class="stories-strip-heading">استوريات الأصدقاء</h5>
-                <small class="text-muted" id="storiesCounterText"></small>
-                        </div>
-            <div class="stories-strip" id="friendsStoriesStrip"></div>
-            <div class="stories-empty" id="storiesEmptyState">
-                <strong>لا توجد استوريات جديدة الآن</strong>
-                <span>عند نشر أصدقائك لاستوريات جديدة ستظهر هنا مباشرة.</span>
-                <a href="javascript:void(0)" class="cta-link" id="emptyAddStoryLink">
-                    <i class="fas fa-plus-circle"></i>
-                    كن أول من يشارك قصة اليوم!
-                </a>
-            </div>
-        </section>
+            </section>
+        </div>
     </div>
 </div>
 </div>
@@ -992,6 +1352,12 @@
             friends: [],
             friendsMap: new Map(),
             viewedStoryIds: new Set(),
+            channels: {
+                following: [],
+                suggested: [],
+            },
+            channelBadgeCount: 0,
+            activeTab: 'stories',
             currentUserId: Number('{{ user.id|default:"0" }}') || null,
             viewer: {
                 isOpen: false,
@@ -1022,6 +1388,8 @@
         const elements = {
             loading: document.getElementById('storiesLoading'),
             alert: document.getElementById('storiesAlert'),
+            updatesTabs: Array.from(document.querySelectorAll('[data-updates-tab]')),
+            updatesPanels: Array.from(document.querySelectorAll('[data-updates-panel]')),
             myStoryCard: document.getElementById('myStoryCard'),
             myStoryRing: document.getElementById('myStoryRing'),
             myStoryAvatar: document.getElementById('myStoryAvatar'),
@@ -1058,6 +1426,10 @@
             viewerUserAvatar: document.getElementById('viewerUserAvatar'),
             viewerTimestamp: document.getElementById('viewerTimestamp'),
             closeViewerButton: document.getElementById('closeStoryViewer'),
+            channelsFollowingList: document.getElementById('channelsFollowingList'),
+            channelsSuggestedList: document.getElementById('channelsSuggestedList'),
+            channelsFollowingCounter: document.getElementById('channelsFollowingCounter'),
+            discoverChannelsButton: document.getElementById('discoverChannelsButton'),
         };
 
         const modals = {
@@ -1098,8 +1470,28 @@
             }
         }
 
+        function escapeHtml(value) {
+            const div = document.createElement('div');
+            div.textContent = value ?? '';
+            return div.innerHTML;
+        }
+
+        const followersFormatter = new Intl.NumberFormat('ar-SA', { maximumFractionDigits: 0 });
+
+        function formatFollowers(value) {
+            const numeric = Number(value) || 0;
+            return followersFormatter.format(numeric);
+        }
+
         function clearAlert() {
             elements.alert?.classList.remove('visible');
+        }
+
+        function updateUpdatesBadge(storiesCount = 0, channelsCount = 0) {
+            if (typeof window.updateStoriesBadge === 'function') {
+                const total = (storiesCount || 0) + (channelsCount || 0);
+                window.updateStoriesBadge(total);
+            }
         }
 
         function formatRelativeTime(timestamp) {
@@ -1342,7 +1734,8 @@
             });
 
             if (typeof window.updateStoriesBadge === 'function') {
-                window.updateStoriesBadge(state.feed?.badge_count || unseenCounter);
+                const storiesBadge = state.feed?.badge_count ?? unseenCounter;
+                updateUpdatesBadge(storiesBadge, state.channelBadgeCount);
             }
 
             if (elements.counter) {
@@ -1389,16 +1782,136 @@
                 }
                 const data = await response.json();
                 state.feed = data;
+                state.channels = data.channels || { following: [], suggested: [] };
+                state.channelBadgeCount = data.channel_badge_count || 0;
                 populateViewedSet(data);
                 renderMyStory(data.my_story);
                 renderFriendsStories(data.friends);
+                renderChannelsSections(state.channels);
                 setEmptyState(!data.friends || data.friends.length === 0);
+                updateUpdatesBadge(data.badge_count || 0, state.channelBadgeCount);
             } catch (error) {
                 console.error('Failed to load stories feed:', error);
                 setEmptyState(true, { title: 'حدث خطأ في تحميل الاستوريات', body: 'يرجى التحقق من الاتصال وإعادة المحاولة لاحقاً.' });
                 showAlert('تعذر تحميل الاستوريات. يرجى التحقق من الاتصال وإعادة المحاولة.', 'error');
+                state.channels = { following: [], suggested: [] };
+                state.channelBadgeCount = 0;
+                renderChannelsSections({ following: [], suggested: [] });
+                updateUpdatesBadge(0, 0);
             } finally {
                 showLoader(false);
+            }
+        }
+
+        function renderChannelsSections(channels) {
+            const following = Array.isArray(channels?.following) ? channels.following : [];
+            const suggested = Array.isArray(channels?.suggested) ? channels.suggested : [];
+
+            if (elements.channelsFollowingCounter) {
+                elements.channelsFollowingCounter.textContent = following.length
+                    ? `${formatFollowers(following.length)} قناة`
+                    : '';
+            }
+
+            renderChannelList(elements.channelsFollowingList, following, { mode: 'following' });
+            renderChannelList(elements.channelsSuggestedList, suggested, { mode: 'suggested' });
+        }
+
+        function renderChannelList(container, items, options = {}) {
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (!items || !items.length) {
+                container.innerHTML = '<div class="channels-empty">لا توجد عناصر لعرضها حالياً.</div>';
+                return;
+            }
+
+            const fragment = document.createDocumentFragment();
+            items.forEach((channel) => {
+                const card = document.createElement('article');
+                const isSuggested = options.mode === 'suggested';
+                card.className = `channel-card${isSuggested ? ' channel-card--suggested' : ''}`;
+                card.dataset.channelId = channel.id || '';
+                card.dataset.channelUnread = channel.unread_posts || 0;
+
+                const verifiedBadge = channel.is_verified ? '<span class="channel-card__badge">موثّق</span>' : '';
+                const followersLabel = `${formatFollowers(channel.followers)} متابع`;
+                const lastUpdate = formatRelativeTime(channel.last_post_at);
+                const description = escapeHtml(channel.description || '');
+                const name = escapeHtml(channel.name || 'قناة');
+
+                card.innerHTML = `
+                    <div class="channel-card__main">
+                        <div class="channel-card__info">
+                            <h6 class="channel-card__name">
+                                ${name}
+                                ${verifiedBadge}
+                            </h6>
+                            <p class="channel-card__description">${description}</p>
+                        </div>
+                        <button type="button"
+                                class="channel-card__action"
+                                data-action="toggle-follow"
+                                data-channel-id="${channel.id || ''}"
+                                data-following="${isSuggested ? 'false' : 'true'}">
+                        </button>
+                    </div>
+                    <div class="channel-card__meta">
+                        <span class="channel-card__meta-item">${followersLabel}</span>
+                        <span class="channel-card__meta-item">آخر تحديث ${lastUpdate}</span>
+                    </div>
+                `;
+
+                const actionButton = card.querySelector('[data-action="toggle-follow"]');
+                setChannelActionFollowState(actionButton, !isSuggested);
+
+                if (!isSuggested && Number(channel.unread_posts || 0) > 0) {
+                    const badge = document.createElement('span');
+                    badge.className = 'channel-card__unread-badge';
+                    badge.textContent = channel.unread_posts > 99 ? '99+' : channel.unread_posts;
+                    card.appendChild(badge);
+                }
+
+                fragment.appendChild(card);
+            });
+
+            container.appendChild(fragment);
+        }
+
+        function setActiveUpdatesTab(tabName) {
+            if (!tabName) {
+                tabName = 'stories';
+            }
+            state.activeTab = tabName;
+            try {
+                sessionStorage.setItem('arabChatUpdatesTab', tabName);
+            } catch (err) {
+                // تجاهل الأخطاء الصامتة (وضع التصفح الخاص)
+            }
+
+            elements.updatesTabs.forEach((tab) => {
+                const matches = tab.dataset.updatesTab === tabName;
+                tab.classList.toggle('is-active', matches);
+            });
+
+            elements.updatesPanels.forEach((panel) => {
+                panel.hidden = panel.dataset.updatesPanel !== tabName;
+            });
+        }
+
+        function setChannelActionFollowState(button, isFollowing) {
+            if (!button) {
+                return;
+            }
+            button.dataset.following = isFollowing ? 'true' : 'false';
+            if (isFollowing) {
+                button.textContent = 'إلغاء المتابعة';
+                button.classList.remove('channel-card__action--primary');
+            } else {
+                button.textContent = 'متابعة';
+                if (!button.classList.contains('channel-card__action--primary')) {
+                    button.classList.add('channel-card__action--primary');
+                }
             }
         }
 
@@ -1836,6 +2349,41 @@
          * Event bindings
          */
         function bindEvents() {
+            const storedTab = (() => {
+                try {
+                    return sessionStorage.getItem('arabChatUpdatesTab');
+                } catch (err) {
+                    return null;
+                }
+            })();
+            const availableTabs = new Set(elements.updatesPanels.map(panel => panel.dataset.updatesPanel));
+            const initialTab = storedTab && availableTabs.has(storedTab) ? storedTab : 'stories';
+            setActiveUpdatesTab(initialTab);
+
+            elements.updatesTabs.forEach((tab) => {
+                tab.addEventListener('click', () => {
+                    const targetTab = tab.dataset.updatesTab || 'stories';
+                    setActiveUpdatesTab(targetTab);
+                });
+            });
+
+            const channelActionHandler = (event) => {
+                const button = event.target.closest('[data-action="toggle-follow"]');
+                if (!button) {
+                    return;
+                }
+                event.preventDefault();
+                const isFollowing = button.dataset.following === 'true';
+                setChannelActionFollowState(button, !isFollowing);
+            };
+
+            elements.channelsFollowingList?.addEventListener('click', channelActionHandler);
+            elements.channelsSuggestedList?.addEventListener('click', channelActionHandler);
+
+            elements.discoverChannelsButton?.addEventListener('click', () => {
+                showAlert('ميزة استكشاف القنوات ستتوفر قريباً.', 'info');
+            });
+
             elements.addStoryButton?.addEventListener('click', (event) => {
                 event.stopPropagation();
                 startQuickStoryFlow(event);

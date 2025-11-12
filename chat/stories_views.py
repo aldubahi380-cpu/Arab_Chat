@@ -27,6 +27,103 @@ from .serializers import StorySerializer, StoryViewSerializer
 logger = logging.getLogger(__name__)
 
 
+def build_channels_context_for_user(user):
+    """
+    إرجاع بيانات أولية (placeholder) للقنوات المرتبطة بالمستخدم.
+    يمكن استبدال المحتوى لاحقاً بنقاط بيانات حقيقية أو ربط مع API خارجي.
+    """
+    now = timezone.now()
+
+    following = [
+        {
+            'id': 'tech-today',
+            'name': 'تِك اليوم',
+            'description': 'ملخّص يومي لأهم أخبار التقنية والابتكارات.',
+            'followers': 18420,
+            'is_verified': True,
+            'is_muted': False,
+            'cover_image': None,
+            'last_post_at': now - timedelta(hours=3),
+            'unread_posts': 4,
+            'category': 'technology',
+            'language': 'ar',
+        },
+        {
+            'id': 'finance-digest',
+            'name': 'ملخص المال',
+            'description': 'تحليلات سريعة لأسواق المال والاقتصاد.',
+            'followers': 11290,
+            'is_verified': False,
+            'is_muted': False,
+            'cover_image': None,
+            'last_post_at': now - timedelta(hours=8),
+            'unread_posts': 0,
+            'category': 'business',
+            'language': 'ar',
+        },
+        {
+            'id': 'gaming-now',
+            'name': 'Gaming Now',
+            'description': 'تغطية لأحدث ألعاب الفيديو والتحديثات الأسبوعية.',
+            'followers': 9320,
+            'is_verified': False,
+            'is_muted': True,
+            'cover_image': None,
+            'last_post_at': now - timedelta(days=1, hours=2),
+            'unread_posts': 1,
+            'category': 'gaming',
+            'language': 'ar',
+        },
+    ]
+
+    suggested = [
+        {
+            'id': 'productivity-hacks',
+            'name': 'Productivity Hacks',
+            'description': 'نصائح قصيرة لرفع الإنتاجية وتنظيم الوقت.',
+            'followers': 15670,
+            'is_verified': True,
+            'cover_image': None,
+            'last_post_at': now - timedelta(hours=5),
+            'trend_score': 87,
+            'category': 'lifestyle',
+            'language': 'en',
+        },
+        {
+            'id': 'health-minute',
+            'name': 'الصحة بالدقيقة',
+            'description': 'معلومات سريعة حول العافية والصحة اليومية.',
+            'followers': 20510,
+            'is_verified': False,
+            'cover_image': None,
+            'last_post_at': now - timedelta(hours=12),
+            'trend_score': 74,
+            'category': 'health',
+            'language': 'ar',
+        },
+        {
+            'id': 'football-zone',
+            'name': 'منطقة الكرة',
+            'description': 'أبرز الأخبار والتحليلات عن كرة القدم العالمية.',
+            'followers': 48900,
+            'is_verified': True,
+            'cover_image': None,
+            'last_post_at': now - timedelta(hours=1, minutes=20),
+            'trend_score': 93,
+            'category': 'sports',
+            'language': 'ar',
+        },
+    ]
+
+    badge_count = sum(1 for channel in following if channel.get('unread_posts', 0) > 0)
+
+    return {
+        'following': following,
+        'suggested': suggested,
+        'badge_count': badge_count,
+    }
+
+
 class StoryViewSet(viewsets.ModelViewSet):
     """ViewSet للاستوريات بآلية مشابهة لواتساب"""
 
@@ -160,10 +257,17 @@ class StoryViewSet(viewsets.ModelViewSet):
 
         badge_count = sum(1 for entry in friends_feed if entry['has_unseen'])
 
+        channels_context = build_channels_context_for_user(user)
+
         return Response({
             'my_story': my_story_section,
             'friends': friends_feed,
             'badge_count': badge_count,
+            'channels': {
+                'following': channels_context['following'],
+                'suggested': channels_context['suggested'],
+            },
+            'channel_badge_count': channels_context['badge_count'],
         })
 
     @action(detail=False, methods=['get'])

@@ -159,6 +159,11 @@ body.app-shell-body {
     -webkit-mask-image: url('../../icons/wa/menu.svg');
 }
 
+.app-icon--close {
+    mask-image: url('../../icons/wa/close.svg');
+    -webkit-mask-image: url('../../icons/wa/close.svg');
+}
+
 .app-icon--arrow-right {
     mask-image: url('../../icons/wa/arrow-right.svg');
     -webkit-mask-image: url('../../icons/wa/arrow-right.svg');
