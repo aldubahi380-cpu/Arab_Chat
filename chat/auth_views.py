@@ -328,7 +328,7 @@ class OTPVerificationViewSet(viewsets.ModelViewSet):
                     token, _ = Token.objects.get_or_create(user=user)
 
                     response_data = {
-                        'message': '✅ تم التحقق بنجاح! مرحباً بك في عرب شات',
+                        'message': '✅ تم التحقق بنجاح! مرحباً بك في واتساب الدوبحي',
                         'token': token.key,
                         'user': {
                             'id': user.id,

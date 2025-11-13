@@ -61,7 +61,7 @@ def check_django_settings():
 
 def main():
     print("=" * 60)
-    print("🔍 فحص إعدادات الشبكة المحلية - عرب شات")
+    print("🔍 فحص إعدادات الشبكة المحلية - واتساب الدوبحي")
     print("=" * 60)
     print()
     

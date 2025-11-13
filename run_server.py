@@ -41,7 +41,7 @@ def main():
     local_ip = get_local_ip()
     
     print("=" * 60)
-    print("🌐 عرب شات - تشغيل على الشبكة المحلية")
+    print("🌐 واتساب الدوبحي - تشغيل على الشبكة المحلية")
     print("=" * 60)
     print(f"📁 المجلد: {project_dir}")
     print(f"🌐 IP المحلي: {local_ip}")

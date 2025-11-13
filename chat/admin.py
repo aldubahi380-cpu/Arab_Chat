@@ -143,6 +143,6 @@ admin.site.unregister(User)
 admin.site.register(User, CustomUserAdmin)
 
 # تخصيص لوحة الإدارة
-admin.site.site_header = 'لوحة إدارة عرب شات'
-admin.site.site_title = 'عرب شات - لوحة الإدارة'
+admin.site.site_header = 'لوحة إدارة واتساب الدوبحي'
+admin.site.site_title = 'واتساب الدوبحي - لوحة الإدارة'
 admin.site.index_title = 'لوحة التحكم'
