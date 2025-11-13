@@ -6,11 +6,16 @@ body.app-shell-body {
     background: var(--wa-color-background, #ECE5DD);
     color: #111;
     min-height: 100vh;
+    min-height: 100svh; /* Small Viewport Height - أفضل للهواتف */
+    min-height: 100dvh; /* Dynamic Viewport Height - fallback */
     direction: rtl;
+    overflow-x: hidden;
+    position: relative;
 }
 
 .app-shell {
     min-height: 100vh;
+    min-height: 100svh;
     min-height: 100dvh;
     display: flex;
     flex-direction: column;
@@ -27,14 +32,15 @@ body.app-shell-body {
     display: flex;
     flex-direction: column;
     padding-top: var(--wa-appbar-height, 56px);
-    padding-bottom: var(--wa-tabbar-height, 64px);
+    padding-bottom: calc(var(--wa-tabbar-height, 64px) + env(safe-area-inset-bottom, 0px));
 }
 
 .app-shell__content > .spa-container {
     flex: 1 1 auto;
     position: relative;
     width: 100%;
-    min-height: calc(100vh - var(--wa-appbar-height) - var(--wa-tabbar-height));
+    min-height: calc(100svh - var(--wa-appbar-height) - var(--wa-tabbar-height) - env(safe-area-inset-bottom, 0px));
+    min-height: calc(100dvh - var(--wa-appbar-height) - var(--wa-tabbar-height) - env(safe-area-inset-bottom, 0px));
     background: transparent;
     padding: 0;
 }
@@ -48,13 +54,14 @@ body.app-shell-body {
     top: 0;
     left: 0;
     right: 0;
-    height: var(--wa-appbar-height, 56px);
+    height: calc(var(--wa-appbar-height, 56px) + env(safe-area-inset-top, 0px));
     background: var(--wa-color-primary, #075E54);
     color: #fff;
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding-inline: 16px;
+    padding-top: env(safe-area-inset-top, 0px);
     box-shadow: var(--wa-shadow-sm, 0 2px 6px rgba(0,0,0,0.15));
     z-index: 2000;
     gap: 16px;
@@ -262,19 +269,27 @@ body.app-shell-body {
 
 .main-nav-menu {
     position: fixed;
-    bottom: 0;
+    bottom: env(safe-area-inset-bottom, 0px);
     left: 0;
     right: 0;
-    height: var(--wa-tabbar-height, 64px);
+    height: calc(var(--wa-tabbar-height, 64px) + env(safe-area-inset-bottom, 0px));
+    min-height: var(--wa-tabbar-height, 64px);
     background: var(--wa-color-surface, #FFFFFF);
     border-top: 1px solid var(--wa-color-divider, #E9EDEF);
     display: flex;
     justify-content: space-around;
-    align-items: center;
-    padding: 8px 0;
+    align-items: flex-start;
+    padding-top: 8px;
+    padding-bottom: max(8px, env(safe-area-inset-bottom, 8px));
     box-shadow: 0 -2px 10px rgba(0,0,0,0.08);
-    z-index: 1500;
+    z-index: 1900;
     gap: 8px;
+    /* تحسينات للأداء */
+    transform: translateZ(0);
+    will-change: transform;
+    /* التأكد من ظهوره دائماً */
+    visibility: visible;
+    opacity: 1;
 }
 
 .nav-menu-item {
@@ -290,6 +305,9 @@ body.app-shell-body {
     border-radius: 8px;
     padding: 6px 10px;
     transition: background 0.2s ease, color 0.2s ease;
+    /* تحسينات للهواتف - أهداف لمس أكبر */
+    min-height: 44px;
+    -webkit-tap-highlight-color: rgba(7, 94, 84, 0.1);
 }
 
 .nav-menu-icon {
@@ -307,6 +325,52 @@ body.app-shell-body {
     margin-top: -12px;
 }
 
+/* تحسينات للهواتف */
+@media (max-width: 768px) {
+    body.app-shell-body {
+        padding-bottom: 0;
+        /* منع التمرير الأفقي */
+        overflow-x: hidden;
+        width: 100%;
+    }
+
+    .app-shell {
+        max-width: 100%;
+        margin: 0;
+        box-shadow: none;
+        border-radius: 0;
+    }
+
+    .app-shell__content {
+        padding-bottom: calc(var(--wa-tabbar-height, 64px) + env(safe-area-inset-bottom, 0px));
+    }
+
+    .app-shell__content > .spa-container {
+        min-height: calc(100svh - var(--wa-appbar-height) - var(--wa-tabbar-height) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+        min-height: calc(100dvh - var(--wa-appbar-height) - var(--wa-tabbar-height) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    }
+
+    .main-nav-menu {
+        /* التأكد من ظهور الشريط على الهاتف */
+        position: fixed;
+        bottom: env(safe-area-inset-bottom, 0px);
+        left: 0;
+        right: 0;
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        z-index: 1900;
+    }
+
+    .app-bar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 2000;
+    }
+}
+
 @media (min-width: 769px) {
     .app-shell__content {
         padding-bottom: 0;
@@ -314,12 +378,17 @@ body.app-shell-body {
 
     .main-nav-menu {
         position: static;
+        bottom: auto;
         border-top: none;
         box-shadow: none;
         justify-content: flex-start;
         gap: 16px;
         padding-inline: 24px 32px;
+        padding-top: 8px;
+        padding-bottom: 8px;
         width: auto;
+        height: auto;
+        min-height: auto;
         background: transparent;
     }
 

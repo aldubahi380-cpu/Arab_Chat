@@ -1,7 +1,8 @@
 .chats-home {
     display: flex;
     flex-direction: column;
-    min-height: calc(100vh - var(--wa-appbar-height) - var(--wa-tabbar-height));
+    min-height: calc(100svh - var(--wa-appbar-height) - var(--wa-tabbar-height) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    min-height: calc(100dvh - var(--wa-appbar-height) - var(--wa-tabbar-height) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
     background: var(--wa-color-background, #ECE5DD);
 }
 
@@ -342,7 +343,7 @@
 
 .chat-compose-fab {
     position: fixed;
-    bottom: calc(var(--wa-tabbar-height, 64px) + 16px);
+    bottom: calc(var(--wa-tabbar-height, 64px) + env(safe-area-inset-bottom, 0px) + 16px);
     left: 20px;
     width: 56px;
     height: 56px;
@@ -356,7 +357,7 @@
     font-size: 22px;
     box-shadow: 0 12px 24px rgba(7, 94, 84, 0.25);
     cursor: pointer;
-    z-index: 1600;
+    z-index: 1800;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -380,7 +381,10 @@
 
 .chat-search-overlay {
     position: fixed;
-    inset: var(--wa-appbar-height) 0 var(--wa-tabbar-height);
+    top: calc(var(--wa-appbar-height, 56px) + env(safe-area-inset-top, 0px));
+    bottom: calc(var(--wa-tabbar-height, 64px) + env(safe-area-inset-bottom, 0px));
+    left: 0;
+    right: 0;
     background: var(--wa-color-background, rgba(255,255,255,0.97));
     display: none;
     flex-direction: column;
