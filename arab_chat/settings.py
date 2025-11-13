@@ -256,11 +256,6 @@ CORS_ALLOW_HEADERS = [
 
 CORS_ALLOW_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
 
-# ملاحظة: Mobile Apps (Flutter/Android) لا تحتاج CORS لأنها ليست browsers
-# هذه الإعدادات تساعد في الاختبار من Postman/Tools أخرى
-# وضمان التوافق مع Web App الموجود
-CORS_EXPOSE_HEADERS = ['Content-Range', 'X-Content-Range', 'X-Pagination-Count', 'X-Pagination-Page']
-
 # القنوات
 ASGI_APPLICATION = 'arab_chat.asgi.application'
 redis_url = env('REDIS_URL')

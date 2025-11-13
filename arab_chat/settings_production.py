@@ -52,8 +52,7 @@ CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = [
     "https://yourdomain.com",  # غير هذا إلى نطاقك
     "https://www.yourdomain.com",
-    # ملاحظة: Mobile Apps (Flutter/Android) لا تحتاج CORS لأنها ليست browsers
-    # إذا كان لديك Web App آخر يصل إلى API، أضفه هنا
+    # يمكن إضافة نطاقات تطبيق Android إذا لزم الأمر
 ]
 
 # إعدادات الأمان
