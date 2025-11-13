@@ -555,7 +555,7 @@
                             </div>
                             {% if card.member_usernames %}
                                 <div class="group-sneak-peek">
-                                    <strong>أعضاء بارزون:</strong> {{ card.member_usernames|join:", " }}{% if card.member_count > card.member_usernames|length + 1 %} والمزيد...{% endif %}
+                                    <strong>أعضاء بارزون:</strong> {{ card.member_usernames|join:", " }}{% if card.has_more_members %} والمزيد...{% endif %}
                                 </div>
                             {% endif %}
                             <div class="group-card-actions">

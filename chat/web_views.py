@@ -373,14 +373,20 @@ def groups_view(request):
 
     group_cards = []
     for group in user_groups_qs:
+        member_usernames = list(
+            group.members.exclude(id=user.id).values_list('username', flat=True)[:6]
+        )
+        member_ids = list(group.members.values_list('id', flat=True))
         group_cards.append({
             'room': group,
             'member_count': group.member_count,
             'is_owner': group.created_by_id == user.id,
             'invite_link': group.get_invite_link(request),
             'invite_code': group.invite_code,
-            'member_usernames': list(group.members.exclude(id=user.id).values_list('username', flat=True)[:6]),
-            'member_ids': list(group.members.values_list('id', flat=True)),
+            'member_usernames': member_usernames,
+            'member_ids': member_ids,
+            'has_more_members': group.member_count > len(member_usernames) + 1,
+            'extra_member_count': max(group.member_count - len(member_usernames) - 1, 0),
         })
 
     friends = Friend.objects.filter(user=user).select_related('friend')
