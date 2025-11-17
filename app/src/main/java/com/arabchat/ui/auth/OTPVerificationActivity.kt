@@ -31,15 +31,25 @@ class OTPVerificationActivity : AppCompatActivity() {
         
         binding.btnVerify.setOnClickListener {
             val otp = binding.etOtp.text.toString().trim()
-            if (otp.length == 6) {
-                viewModel.verifyOTP(phone, otp)
+            val username = intent.getStringExtra("username") ?: ""
+            if (otp.length == 6 && username.isNotEmpty()) {
+                // Get device info
+                val deviceId = android.provider.Settings.Secure.getString(
+                    contentResolver,
+                    android.provider.Settings.Secure.ANDROID_ID
+                )
+                val deviceName = android.os.Build.MODEL
+                viewModel.verifyOTP(phone, otp, username, deviceId, deviceName)
             } else {
                 Toast.makeText(this, R.string.invalid_otp, Toast.LENGTH_SHORT).show()
             }
         }
         
         binding.btnResend.setOnClickListener {
-            viewModel.requestOTP(phone)
+            val username = intent.getStringExtra("username") ?: ""
+            if (username.isNotEmpty()) {
+                viewModel.requestOTP(phone, username)
+            }
         }
     }
     

@@ -27,10 +27,11 @@ class PhoneVerificationActivity : AppCompatActivity() {
         
         binding.btnSendOtp.setOnClickListener {
             val phone = binding.etPhone.text.toString().trim()
-            if (phone.isNotEmpty()) {
-                viewModel.requestOTP(phone)
+            val username = binding.etUsername.text.toString().trim()
+            if (phone.isNotEmpty() && username.isNotEmpty()) {
+                viewModel.requestOTP(phone, username)
             } else {
-                Toast.makeText(this, R.string.invalid_phone, Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "يرجى إدخال رقم الهاتف واسم المستخدم", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -39,8 +40,10 @@ class PhoneVerificationActivity : AppCompatActivity() {
         viewModel.otpSent.observe(this) { success ->
             if (success) {
                 val phone = binding.etPhone.text.toString().trim()
+                val username = binding.etUsername.text.toString().trim()
                 val intent = Intent(this, OTPVerificationActivity::class.java)
                 intent.putExtra("phone", phone)
+                intent.putExtra("username", username)
                 startActivity(intent)
             }
         }

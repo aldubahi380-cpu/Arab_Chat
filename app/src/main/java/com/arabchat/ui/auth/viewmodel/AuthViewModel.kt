@@ -26,13 +26,13 @@ class AuthViewModel(private val context: android.content.Context) : ViewModel() 
     private val _error = MutableLiveData<String?>()
     val error: LiveData<String?> = _error
     
-    fun requestOTP(phone: String) {
+    fun requestOTP(phone: String, username: String) {
         viewModelScope.launch {
             _loading.value = true
             _error.value = null
             
-            authRepository.requestOTP(phone).fold(
-                onSuccess = {
+            authRepository.requestOTP(phone, username).fold(
+                onSuccess = { response ->
                     _otpSent.value = true
                     _loading.value = false
                 },
@@ -44,15 +44,23 @@ class AuthViewModel(private val context: android.content.Context) : ViewModel() 
         }
     }
     
-    fun verifyOTP(phone: String, otpCode: String) {
+    fun verifyOTP(
+        phone: String,
+        otpCode: String,
+        username: String,
+        deviceId: String? = null,
+        deviceName: String? = null
+    ) {
         viewModelScope.launch {
             _loading.value = true
             _error.value = null
             
-            authRepository.verifyOTP(phone, otpCode).fold(
+            authRepository.verifyOTP(phone, otpCode, username, deviceId, deviceName).fold(
                 onSuccess = { authResponse ->
                     tokenManager.saveToken(authResponse.token)
-                    tokenManager.saveUserId(authResponse.user.id)
+                    authResponse.user?.let { user ->
+                        tokenManager.saveUserId(user.id)
+                    }
                     _authSuccess.value = true
                     _loading.value = false
                 },

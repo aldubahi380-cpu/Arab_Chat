@@ -15,6 +15,14 @@
 .cxx
 local.properties
 
+# Keystore files (لا ترفع ملفات keystore للإنتاج)
+keystore/*.keystore
+keystore/*.jks
+!keystore/.gitkeep
+
+# APK files (اختياري - يمكن رفعها)
+# apk/*.apk
+
 # Python
 __pycache__/
 *.py[cod]
