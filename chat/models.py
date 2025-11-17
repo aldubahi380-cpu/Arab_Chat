@@ -451,7 +451,6 @@ class DeviceToken(models.Model):
     DEVICE_TYPE_CHOICES = [
         ('android', 'Android'),
         ('ios', 'iOS'),
-        ('web', 'Web'),
     ]
     
     user = models.ForeignKey(

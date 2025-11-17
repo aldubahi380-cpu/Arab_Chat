@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Standard spacing -->
+    <dimen name="spacing_tiny">4dp</dimen>
+    <dimen name="spacing_small">8dp</dimen>
+    <dimen name="spacing_medium">12dp</dimen>
+    <dimen name="spacing_large">16dp</dimen>
+    <dimen name="spacing_xlarge">24dp</dimen>
+    <dimen name="spacing_xxlarge">32dp</dimen>
+    
+    <!-- Text sizes -->
+    <dimen name="text_size_tiny">10sp</dimen>
+    <dimen name="text_size_small">12sp</dimen>
+    <dimen name="text_size_medium">14sp</dimen>
+    <dimen name="text_size_large">16sp</dimen>
+    <dimen name="text_size_xlarge">18sp</dimen>
+    <dimen name="text_size_xxlarge">24sp</dimen>
+    
+    <!-- Avatar sizes -->
+    <dimen name="avatar_size_small">32dp</dimen>
+    <dimen name="avatar_size_medium">48dp</dimen>
+    <dimen name="avatar_size_large">64dp</dimen>
+    
+    <!-- Message bubble -->
+    <dimen name="message_max_width">280dp</dimen>
+    <dimen name="message_min_width">48dp</dimen>
+    <dimen name="message_padding">12dp</dimen>
+    
+    <!-- Chat room item -->
+    <dimen name="chat_item_height">72dp</dimen>
+    <dimen name="chat_item_padding">12dp</dimen>
+    
+    <!-- Bottom navigation -->
+    <dimen name="bottom_nav_height">56dp</dimen>
+    <dimen name="bottom_nav_icon_size">24dp</dimen>
+    
+    <!-- Toolbar -->
+    <dimen name="toolbar_height">56dp</dimen>
+    
+    <!-- Input field -->
+    <dimen name="input_min_height">40dp</dimen>
+    <dimen name="input_padding">12dp</dimen>
+</resources>
+

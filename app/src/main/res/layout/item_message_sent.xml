@@ -7,22 +7,28 @@
 
     <TextView
         android:id="@+id/messageText"
-        android:layout_width="0dp"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="الرسالة"
         android:textColor="@color/text_primary"
+        android:textSize="@dimen/text_size_medium"
         android:background="@drawable/bg_message_sent"
-        android:padding="12dp"
-        android:maxWidth="280dp"
+        android:paddingStart="@dimen/message_padding"
+        android:paddingEnd="@dimen/message_padding"
+        android:paddingTop="@dimen/spacing_small"
+        android:paddingBottom="@dimen/spacing_small"
+        android:maxWidth="@dimen/message_max_width"
+        android:minWidth="@dimen/message_min_width"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        android:layout_marginEnd="16dp" />
 
     <TextView
         android:id="@+id/timeText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="10:30"
-        android:textSize="10sp"
+        android:textSize="@dimen/text_size_tiny"
         android:textColor="@color/text_secondary"
         app:layout_constraintEnd_toEndOf="@id/messageText"
         app:layout_constraintTop_toBottomOf="@id/messageText"

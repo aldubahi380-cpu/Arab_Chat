@@ -13,7 +13,6 @@ DJANGO_ALLOWED_HOSTS=your-app.onrender.com
 
 # روابط الشبكات
 BASE_URL=https://your-app.onrender.com
-FRONTEND_BASE_URL=https://your-app.onrender.com
 API_BASE_URL=https://your-app.onrender.com/api
 WS_BASE_URL=wss://your-app.onrender.com
 
@@ -41,7 +40,6 @@ AWS_STORAGE_BUCKET_NAME=your-bucket
 AWS_S3_REGION_NAME=eu-west-1
 AWS_S3_CUSTOM_DOMAIN=cdn.your-domain.com
 DEFAULT_FILE_STORAGE_BACKEND=storages.backends.s3boto3.S3Boto3Storage
-STATICFILES_STORAGE_BACKEND=storages.backends.s3boto3.S3StaticStorage
 ```
 
 > **ملاحظة:** عند العمل محلياً مع نفس الملف، عيّن `BASE_URL=http://127.0.0.1:8000` و `WS_BASE_URL=ws://127.0.0.1:8000` وسيقوم الكود بضبط المسارات تلقائياً.
@@ -57,7 +55,7 @@ STATICFILES_STORAGE_BACKEND=storages.backends.s3boto3.S3StaticStorage
 
 بعد الربط بـ GitHub وتشغيل النشر التلقائي:
 
-1. تأكد من تشغيل الأمر `python manage.py collectstatic --noinput` أثناء البناء (موجود في `render.yaml`).
+1. تأكد من تشغيل migrations أثناء البناء (موجود في `render.yaml`).
 2. عيّن جميع متغيّرات البيئة المذكورة أعلاه عبر لوحة Render.
 3. فعّل HTTPS على النطاق (Render يوفّر شهادة TLS تلقائياً).
 
@@ -75,13 +73,13 @@ STATICFILES_STORAGE_BACKEND=storages.backends.s3boto3.S3StaticStorage
    celery -A arab_chat beat --loglevel=info
    python manage.py runserver
    ```
-5. استخدم `BASE_URL=http://127.0.0.1:8000` و `WS_BASE_URL=ws://127.0.0.1:8000` لاختبار الواجهات.
+5. استخدم `BASE_URL=http://127.0.0.1:8000` و `WS_BASE_URL=ws://127.0.0.1:8000` لاختبار API.
 
 ## ملاحظات إضافية
 
-- **HTTPS/WSS:** تعتمد جميع الروابط في الواجهة على القيم القادمة من متغيّرات البيئة (`window.__APP_CONFIG__`). تأكد من ضبطها بشكل صحيح قبل النشر.
+- **HTTPS/WSS:** جميع الروابط للتطبيق الأصلي فقط. تأكد من ضبط BASE_URL و API_BASE_URL بشكل صحيح.
 - **التوثيق:** الكود يستخدم ملفات تعريف أجهزة (`SessionDevice`) للحفاظ على تسجيل الدخول الآلي شبيهاً بتطبيقات المراسلة.
-- **المكالمات/الإشعارات:** يتطلب تمكين التحذيرات الصوتية والمكالمات استخدام WebRTC وFCM مع Service Worker في الواجهة الأمامية.
+- **المكالمات/الإشعارات:** يتطلب تمكين FCM في التطبيق الأصلي.
 - **تنظيف الجلسات:** استخدم Celery Beat لإضافة مهام مجدولة (مثل تنظيف الأجهزة منتهية الصلاحية أو تحديث مؤشرات الحالة).
 - **حذف الحساب:**  
   - الوضع الاعتيادي يعتمد على Celery Worker نشط. بعد استقبال طلب الحذف (واجهة API)، تُرسل مهمة `delete_user_account_task`، ويكمل العامل حذف جميع البيانات. شغّل الأوامر:

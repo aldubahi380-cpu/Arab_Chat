@@ -30,8 +30,9 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="8dp"
+        android:padding="@dimen/spacing_small"
         android:background="@color/text_white"
+        android:minHeight="56dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -41,18 +42,28 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:minHeight="@dimen/input_min_height"
             android:hint="@string/type_message"
+            android:textSize="@dimen/text_size_medium"
             android:maxLines="5"
             android:minLines="1"
-            android:padding="12dp"
+            android:paddingStart="@dimen/input_padding"
+            android:paddingEnd="@dimen/input_padding"
+            android:paddingTop="@dimen/spacing_medium"
+            android:paddingBottom="@dimen/spacing_medium"
             android:background="@drawable/bg_message_input"
-            android:layout_marginEnd="8dp" />
+            android:layout_marginEnd="8dp"
+            android:layout_gravity="center_vertical" />
 
         <Button
             android:id="@+id/btnSend"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:minWidth="64dp"
+            android:minHeight="@dimen/input_min_height"
             android:text="@string/send"
+            android:textSize="@dimen/text_size_medium"
+            android:layout_gravity="center_vertical"
             style="@style/Widget.MaterialComponents.Button" />
 
     </LinearLayout>

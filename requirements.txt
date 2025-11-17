@@ -9,7 +9,6 @@ pydub==0.25.1
 pyfcm==1.5.4
 django-environ==0.11.2
 dj-database-url==2.1.0
-whitenoise==6.7.0
 psycopg[binary]==3.2.12
 django-storages[boto3]==1.14.4
 boto3==1.34.131

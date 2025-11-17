@@ -16,7 +16,6 @@ env = environ.Env(
     DJANGO_DEBUG=(bool, False),
     DJANGO_SECRET_KEY=(str, ''),
     DJANGO_ALLOWED_HOSTS=(list, ['.onrender.com']),
-    FRONTEND_BASE_URL=(str, 'https://your-app.onrender.com'),
     CORS_ALLOWED_ORIGINS=(list, []),
     CSRF_TRUSTED_ORIGINS=(list, []),
     DATABASE_URL=(str, f"sqlite:///{BASE_DIR / 'db.sqlite3'}"),
@@ -187,23 +186,20 @@ REST_FRAMEWORK = {
     ],
 }
 
-# إعداد روابط القاعدة
+# إعداد روابط القاعدة (للتطبيق الأصلي فقط)
 BASE_URL = env('BASE_URL', default='')
-FRONTEND_BASE_URL = env('FRONTEND_BASE_URL', default=BASE_URL or '')
 API_BASE_URL = env('API_BASE_URL', default=f"{BASE_URL.rstrip('/')}/api" if BASE_URL else '/api')
 WS_BASE_URL = env('WS_BASE_URL', default='')
 
-# CORS و CSRF
-DEFAULT_CORS_ORIGINS = []
-for origin in (FRONTEND_BASE_URL, BASE_URL):
-    if origin:
-        DEFAULT_CORS_ORIGINS.append(origin)
-DEFAULT_CORS_ORIGINS = list(dict.fromkeys(DEFAULT_CORS_ORIGINS))
-CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS') or DEFAULT_CORS_ORIGINS
+# CORS و CSRF (للتطبيق الأصلي فقط)
+CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS') or []
+if BASE_URL:
+    CORS_ALLOWED_ORIGINS.append(BASE_URL)
+CORS_ALLOWED_ORIGINS = list(dict.fromkeys(CORS_ALLOWED_ORIGINS))
 CORS_ALLOW_CREDENTIALS = True
 
 default_csrf_origins = []
-for origin in DEFAULT_CORS_ORIGINS:
+for origin in CORS_ALLOWED_ORIGINS:
     if origin:
         if origin.startswith('http://') or origin.startswith('https://'):
             default_csrf_origins.append(origin)

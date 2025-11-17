@@ -76,8 +76,7 @@ CHANNEL_LAYERS = {
     },
 }
 
-# إعدادات الملفات الثابتة
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+# إعدادات الوسائط (للتطبيق الأصلي فقط - لا توجد ملفات ثابتة)
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # إعدادات البريد الإلكتروني (اختياري)

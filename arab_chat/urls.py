@@ -18,10 +18,13 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from chat.download_views import download_apk_page, download_apk_file
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('chat.urls')),
+    path('', download_apk_page, name='download_page'),
+    path('download/apk/', download_apk_file, name='download_apk'),
+    path('api/', include('chat.urls')),
 ]
 
 # إضافة ملفات الوسائط أثناء التطوير

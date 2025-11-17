@@ -28,9 +28,7 @@ class PushNotificationService:
         """تهيئة خدمة FCM"""
         self.fcm_available = FCM_AVAILABLE
         self.base_url = getattr(settings, 'BASE_URL', '').rstrip('/')
-        self.frontend_base_url = getattr(settings, 'FRONTEND_BASE_URL', '').rstrip('/')
-        self.static_url = getattr(settings, 'STATIC_URL', '/static/')
-        self.default_icon = self.build_absolute_url(f"{self.static_url.rstrip('/')}/pwa/icons/icon-192.png")
+        self.default_icon = None  # للتطبيق الأصلي فقط - لا حاجة لـ icon URL
 
         if self.fcm_available:
             # الحصول على FCM Server Key من الإعدادات
@@ -63,7 +61,7 @@ class PushNotificationService:
         if path.startswith('http://') or path.startswith('https://'):
             return path
 
-        base = self.base_url or self.frontend_base_url
+        base = self.base_url
         if not base:
             return path
 
