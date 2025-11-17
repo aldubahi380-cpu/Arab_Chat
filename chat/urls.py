@@ -1,19 +1,9 @@
 from django.urls import path, include
-from django.shortcuts import redirect
 from rest_framework.routers import DefaultRouter
 from rest_framework.authtoken.views import obtain_auth_token
 from .views import (
     UserViewSet, UserProfileViewSet, ChatRoomViewSet,
     MessageViewSet, MessageReadViewSet, CallSessionViewSet,
-    index_view
-)
-from .web_views import (
-    terms_view, accept_terms_view, register_view,
-    dashboard_view,
-    private_chats_view, groups_view, search_view,
-    stories_view, settings_view, chat_room_view, start_chat_view,
-    create_group_view, join_group_view, leave_group_view, join_group_by_code_view,
-    otp_test_view, service_worker
 )
 from .auth_views import OTPVerificationViewSet
 from .friends_views import FriendRequestViewSet, FriendViewSet, BlockedUserViewSet
@@ -50,34 +40,8 @@ router.register(r'session-devices', SessionDeviceViewSet, basename='session-devi
 # المستخدمون المتواصل معهم
 router.register(r'recent-contacts', RecentContactViewSet, basename='recent-contact')
 
-def redirect_chat_to_chats(request):
-    """إعادة توجيه من /chat/ إلى /chats/"""
-    return redirect('private_chats')
-
 urlpatterns = [
-    path('', index_view, name='index'),
-    # صفحات التسجيل
-    path('terms/', terms_view, name='terms'),
-    path('accept-terms/', accept_terms_view, name='accept_terms'),
-    path('register/', register_view, name='register'),
-    # واجهات الويب
-    path('dashboard/', dashboard_view, name='dashboard'),
-    path('chat/', redirect_chat_to_chats, name='chat_redirect'),  # إعادة توجيه من /chat/ إلى /chats/
-    path('chats/', private_chats_view, name='private_chats'),
-    path('chats/<int:room_id>/', chat_room_view, name='chat_room'),
-    path('start-chat/<int:user_id>/', start_chat_view, name='start_chat'),
-    path('groups/', groups_view, name='groups'),
-    path('groups/create/', create_group_view, name='create_group'),
-    path('groups/<int:room_id>/join/', join_group_view, name='join_group'),
-    path('groups/<int:room_id>/leave/', leave_group_view, name='leave_group'),
-    path('groups/invite/<str:invite_code>/', join_group_by_code_view, name='join_group_by_code'),
-    path('search/', search_view, name='search'),
-    path('stories/', stories_view, name='stories'),
-    path('settings/', settings_view, name='settings'),
-    path('sw.js', service_worker, name='service_worker'),
-    # واجهة اختبار OTP (للتطوير فقط)
-    path('otp-test/', otp_test_view, name='otp_test'),
-    # API
+    # API فقط - لا توجد واجهات ويب
     path('api/', include(router.urls)),
     path('api/auth/login/', obtain_auth_token, name='api-login'),
 ]

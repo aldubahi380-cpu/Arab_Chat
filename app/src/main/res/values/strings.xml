@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Arab Chat</string>
+    
+    <!-- Auth -->
+    <string name="enter_phone_number">أدخل رقم الهاتف</string>
+    <string name="phone_number">رقم الهاتف</string>
+    <string name="send_otp">إرسال رمز التحقق</string>
+    <string name="enter_otp">أدخل رمز التحقق</string>
+    <string name="verify">تحقق</string>
+    <string name="resend_otp">إعادة إرسال الرمز</string>
+    <string name="invalid_phone">رقم الهاتف غير صحيح</string>
+    <string name="invalid_otp">رمز التحقق غير صحيح</string>
+    <string name="verifying">جاري التحقق...</string>
+    
+    <!-- Main -->
+    <string name="chats">الدردشات</string>
+    <string name="contacts">جهات الاتصال</string>
+    <string name="stories">الاستوريات</string>
+    <string name="settings">الإعدادات</string>
+    <string name="search">بحث</string>
+    <string name="no_chats">لا توجد دردشات</string>
+    <string name="no_contacts">لا توجد جهات اتصال</string>
+    
+    <!-- Chat -->
+    <string name="type_message">اكتب رسالة...</string>
+    <string name="send">إرسال</string>
+    <string name="online">متصل</string>
+    <string name="last_seen">آخر ظهور</string>
+    <string name="typing">يكتب...</string>
+    <string name="message_sent">تم الإرسال</string>
+    <string name="message_delivered">تم التسليم</string>
+    <string name="message_read">تمت القراءة</string>
+    <string name="message_failed">فشل الإرسال</string>
+    <string name="image">صورة</string>
+    <string name="video">فيديو</string>
+    <string name="audio">صوت</string>
+    <string name="file">ملف</string>
+    
+    <!-- Profile -->
+    <string name="profile">الملف الشخصي</string>
+    <string name="edit_profile">تعديل الملف الشخصي</string>
+    <string name="name">الاسم</string>
+    <string name="bio">نبذة عني</string>
+    <string name="phone">رقم الهاتف</string>
+    <string name="save">حفظ</string>
+    <string name="logout">تسجيل الخروج</string>
+    <string name="delete_account">حذف الحساب</string>
+    
+    <!-- Common -->
+    <string name="loading">جاري التحميل...</string>
+    <string name="error">حدث خطأ</string>
+    <string name="retry">إعادة المحاولة</string>
+    <string name="cancel">إلغاء</string>
+    <string name="ok">موافق</string>
+    <string name="yes">نعم</string>
+    <string name="no">لا</string>
+    <string name="delete">حذف</string>
+    <string name="edit">تعديل</string>
+    <string name="back">رجوع</string>
+    
+    <!-- Network -->
+    <string name="no_internet">لا يوجد اتصال بالإنترنت</string>
+    <string name="connection_error">خطأ في الاتصال</string>
+    <string name="server_error">خطأ في السيرفر</string>
+    
+    <!-- Permissions -->
+    <string name="camera_permission_required">يجب السماح بالوصول إلى الكاميرا</string>
+    <string name="storage_permission_required">يجب السماح بالوصول إلى التخزين</string>
+</resources>
+

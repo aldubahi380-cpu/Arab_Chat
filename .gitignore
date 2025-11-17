@@ -1,23 +1,33 @@
+# Android
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
+env/
+venv/
+ENV/
+my_env/
 *.egg-info/
-.installed.cfg
+dist/
+build/
 *.egg
 
 # Django
@@ -27,26 +37,10 @@ db.sqlite3
 db.sqlite3-journal
 /media
 /staticfiles
-/static
-# Allow checked-in source assets under static/
-!/static/
-!/static/css/
-!/static/css/**
-!/static/js/
-!/static/js/**
-!/static/pwa/
-!/static/pwa/**
-!/static/sw.js
-
-# Virtual Environment
-my_env/
-venv/
-env/
-ENV/
 
 # IDE
-.vscode/
 .idea/
+.vscode/
 *.swp
 *.swo
 *~
@@ -54,8 +48,3 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
-
-# Environment variables
-.env
-.env.local
-

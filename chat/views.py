@@ -1324,13 +1324,3 @@ class CallSessionViewSet(viewsets.ModelViewSet):
         return list(User.objects.filter(id__in=room_member_ids, is_active=True))
 
 
-def index_view(request):
-    """الصفحة الرئيسية"""
-    # إذا كان المستخدم مسجل دخول، توجيهه للـ dashboard
-    if request.user.is_authenticated:
-        from django.shortcuts import redirect
-        return redirect('dashboard')
-    
-    # إذا لم يكن مسجل دخول، توجيهه لصفحة الشروط
-    from django.shortcuts import redirect
-    return redirect('terms')

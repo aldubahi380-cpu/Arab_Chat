@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- WhatsApp-like colors -->
+    <color name="primary_green">#075E54</color>
+    <color name="primary_green_dark">#054D44</color>
+    <color name="primary_green_light">#128C7E</color>
+    <color name="accent_green">#25D366</color>
+    <color name="light_green">#DCF8C6</color>
+    <color name="background_light">#F0F2F5</color>
+    <color name="background_dark">#0B141A</color>
+    <color name="text_primary">#000000</color>
+    <color name="text_secondary">#667781</color>
+    <color name="text_white">#FFFFFF</color>
+    <color name="divider">#E4E6EB</color>
+    <color name="online_indicator">#25D366</color>
+    <color name="unread_badge">#25D366</color>
+    <color name="message_sent">#DCF8C6</color>
+    <color name="message_received">#FFFFFF</color>
+    <color name="error">#F44336</color>
+</resources>
+
