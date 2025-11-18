@@ -19,8 +19,8 @@ android {
         
         // API Base URL - Render Server
         // TODO: استبدل your-app.onrender.com بـ URL السيرفر الفعلي على Render
-        buildConfigField "String", "API_BASE_URL", '"https://your-app.onrender.com/api"'
-        buildConfigField "String", "WS_BASE_URL", '"wss://your-app.onrender.com/ws"'
+        buildConfigField "String", "API_BASE_URL", '"https://arab-chat-abc123.onrender.com/api"'
+        buildConfigField "String", "WS_BASE_URL", '"wss://arab-chat-abc123.onrender.com/ws"'
     }
 
     signingConfigs {
@@ -53,8 +53,8 @@ android {
             signingConfig signingConfigs.release
             
             // API URLs للإنتاج
-            buildConfigField "String", "API_BASE_URL", '"https://your-app.onrender.com/api"'
-            buildConfigField "String", "WS_BASE_URL", '"wss://your-app.onrender.com/ws"'
+            buildConfigField "String", "API_BASE_URL", '"https://arab-chat-abc123.onrender.com/api"'
+            buildConfigField "String", "WS_BASE_URL", '"wss://arab-chat-abc123.onrender.com/ws"'
         }
         debug {
             minifyEnabled false
@@ -91,6 +91,7 @@ android {
 dependencies {
     // Android Core
     implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.core:core-splashscreen:1.0.1'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'

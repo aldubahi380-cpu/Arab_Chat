@@ -188,13 +188,21 @@ def download_apk_file(request):
     apk_dir = Path(settings.BASE_DIR) / "apk"
     
     if not apk_dir.exists():
-        return HttpResponse("APK file not found", status=404)
+        return HttpResponse(
+            "APK directory not found. Please build APK and place it in the /apk folder.",
+            status=404,
+            content_type="text/plain; charset=utf-8"
+        )
     
     # البحث عن أحدث APK
     apk_files = list(apk_dir.glob("*.apk"))
     
     if not apk_files:
-        return HttpResponse("No APK files found", status=404)
+        return HttpResponse(
+            "No APK files found in /apk directory. Please build APK using Android Studio and place it in the /apk folder, then commit and push to Git.",
+            status=404,
+            content_type="text/plain; charset=utf-8"
+        )
     
     # الحصول على أحدث ملف
     latest_apk = max(apk_files, key=lambda p: p.stat().st_mtime)
